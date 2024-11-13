@@ -8,7 +8,9 @@ import requests
 
 from markitdown import MarkItDown
 
-skip_remote = os.environ.get("GITHUB_ACTIONS")  # Don't run these tests in CI
+skip_remote = (
+    True if os.environ.get("GITHUB_ACTIONS") else False
+)  # Don't run these tests in CI
 skip_exiftool = shutil.which("exiftool") is None
 
 TEST_FILES_DIR = os.path.join(os.path.dirname(__file__), "test_files")
