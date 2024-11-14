@@ -1,14 +1,27 @@
 # MarkItDown
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+The MarkItDown library is a utility tool for converting various files to Markdown (e.g., for indexing, text analysis, etc.)
 
-As the maintainer of this project, please make a few updates:
+It presently supports:
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+- PDF (.pdf)
+- PowerPoint (.pptx)
+- Word (.docx)
+- Excel (.xlsx)
+- Images (EXIF metadata, and OCR)
+- Audio (EXIF metadata, and speech transcription)
+- HTML (special handling of Wikipedia, etc.)
+- Various other text-based formats (csv, json, xml, etc.)
+
+The API is simple:
+
+```python
+from markitdown import MarkItDown
+
+markitdown = MarkItDown()
+result = markitdown.convert("test.xlsx")
+print(result.text_content)
+```
 
 ## Contributing
 
