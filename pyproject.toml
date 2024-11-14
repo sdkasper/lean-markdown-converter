@@ -49,6 +49,9 @@ Source = "https://github.com/microsoft/markitdown"
 [tool.hatch.version]
 path = "src/markitdown/__about__.py"
 
+[project.scripts]
+markitdown = "markitdown.__main__:main"
+
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
