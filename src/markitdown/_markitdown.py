@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import traceback
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
 
@@ -913,7 +914,9 @@ class MarkItDown:
         # Get extension alternatives from the path and puremagic
         base, ext = os.path.splitext(path)
         self._append_ext(extensions, ext)
-        self._append_ext(extensions, self._guess_ext_magic(path))
+
+        for g in self._guess_ext_magic(path):
+            self._append_ext(extensions, g)
 
         # Convert
         return self._convert(path, extensions, **kwargs)
@@ -940,7 +943,8 @@ class MarkItDown:
             fh.close()
 
             # Use puremagic to check for more extension options
-            self._append_ext(extensions, self._guess_ext_magic(temp_path))
+            for g in self._guess_ext_magic(temp_path):
+                self._append_ext(extensions, g)
 
             # Convert
             result = self._convert(temp_path, extensions, **kwargs)
@@ -1032,10 +1036,10 @@ class MarkItDown:
                     _kwargs["mlm_model"] = self._mlm_model
 
                 # If we hit an error log it and keep trying
-                # try:
-                res = converter.convert(local_path, **_kwargs)
-                # except Exception:
-                #    error_trace = ("\n\n" + traceback.format_exc()).strip()
+                try:
+                    res = converter.convert(local_path, **_kwargs)
+                except Exception:
+                    error_trace = ("\n\n" + traceback.format_exc()).strip()
 
                 if res is not None:
                     # Normalize the content
@@ -1074,10 +1078,15 @@ class MarkItDown:
         # Use puremagic to guess
         try:
             guesses = puremagic.magic_file(path)
-            if len(guesses) > 0:
-                ext = guesses[0].extension.strip()
+            extensions = list()
+            for g in guesses:
+                ext = g.extension.strip()
                 if len(ext) > 0:
-                    return ext
+                    if not ext.startswith("."):
+                        ext = "." + ext
+                    if ext not in extensions:
+                        extensions.append(ext)
+            return extensions
         except FileNotFoundError:
             pass
         except IsADirectoryError:
