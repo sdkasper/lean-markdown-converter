@@ -999,7 +999,8 @@ class MarkItDown:
             fh.close()
 
             # Use puremagic to check for more extension options
-            self._append_ext(extensions, self._guess_ext_magic(temp_path))
+            for g in self._guess_ext_magic(temp_path):
+                self._append_ext(extensions, g)
 
             # Convert
             result = self._convert(temp_path, extensions, url=response.url)
@@ -1093,7 +1094,7 @@ class MarkItDown:
             pass
         except PermissionError:
             pass
-        return None
+        return []
 
     def register_page_converter(self, converter: DocumentConverter) -> None:
         """Register a page text converter."""

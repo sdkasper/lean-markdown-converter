@@ -2,8 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-from ._markitdown import MarkItDown
+from ._markitdown import MarkItDown, FileConversionException, UnsupportedFormatException
 
 __all__ = [
     "MarkItDown",
+    "FileConversionException",
+    "UnsupportedFormatException",
 ]
