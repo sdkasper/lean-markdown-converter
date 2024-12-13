@@ -1,5 +1,7 @@
 # MarkItDown
 
+[![PyPI](https://img.shields.io/pypi/v/markitdown.svg)](https://pypi.org/project/markitdown/)
+
 The MarkItDown library is a utility tool for converting various files to Markdown (e.g., for indexing, text analysis, etc.)
 
 It presently supports:
@@ -21,6 +23,16 @@ from markitdown import MarkItDown
 markitdown = MarkItDown()
 result = markitdown.convert("test.xlsx")
 print(result.text_content)
+```
+
+To use this as a command-line utility, install it and then run it like this:
+
+```bash
+markitdown path-to-file.pdf
+```
+This will output Markdown to standard output. You can save it like this:
+```bash
+markitdown path-to-file.pdf > document.md
 ```
 
 ## Contributing
