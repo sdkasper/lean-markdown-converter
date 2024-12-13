@@ -34,6 +34,10 @@ This will output Markdown to standard output. You can save it like this:
 ```bash
 markitdown path-to-file.pdf > document.md
 ```
+You can pipe content to standard input by omitting the argument:
+```bash
+cat path-to-file.pdf | markitdown
+```
 
 ## Contributing
 
