@@ -839,7 +839,43 @@ class ImageConverter(MediaConverter):
 
 
 class ZipConverter(DocumentConverter):
-    """Converts ZIP files to markdown by extracting and converting all contained files."""
+    """Converts ZIP files to markdown by extracting and converting all contained files.
+
+    The converter extracts the ZIP contents to a temporary directory, processes each file
+    using appropriate converters based on file extensions, and then combines the results
+    into a single markdown document. The temporary directory is cleaned up after processing.
+
+    Example output format:
+    ```markdown
+    Content from the zip file `example.zip`:
+
+    ## File: docs/readme.txt
+
+    This is the content of readme.txt
+    Multiple lines are preserved
+
+    ## File: images/example.jpg
+
+    ImageSize: 1920x1080
+    DateTimeOriginal: 2024-02-15 14:30:00
+    Description: A beautiful landscape photo
+
+    ## File: data/report.xlsx
+
+    ## Sheet1
+    | Column1 | Column2 | Column3 |
+    |---------|---------|---------|
+    | data1   | data2   | data3   |
+    | data4   | data5   | data6   |
+    ```
+
+    Key features:
+    - Maintains original file structure in headings
+    - Processes nested files recursively
+    - Uses appropriate converters for each file type
+    - Preserves formatting of converted content
+    - Cleans up temporary files after processing
+    """
 
     def convert(
         self, local_path: str, **kwargs: Any
