@@ -837,6 +837,88 @@ class ImageConverter(MediaConverter):
         return response.choices[0].message.content
 
 
+class ZipConverter(DocumentConverter):
+    """Converts ZIP files to markdown by extracting and converting all contained files."""
+
+    def convert(
+        self, local_path: str, **kwargs: Any
+    ) -> Union[None, DocumentConverterResult]:
+        # Bail if not a ZIP
+        extension = kwargs.get("file_extension", "")
+        if extension.lower() != ".zip":
+            return None
+
+        # Get parent converters list if available
+        parent_converters = kwargs.get("_parent_converters", [])
+        if not parent_converters:
+            return DocumentConverterResult(
+                title=None,
+                text_content=f"[ERROR] No converters available to process zip contents from: {local_path}",
+            )
+
+        extracted_zip_folder_name = (
+            f"extracted_{os.path.basename(local_path).replace('.zip', '_zip')}"
+        )
+        new_folder = os.path.normpath(
+            os.path.join(os.path.dirname(local_path), extracted_zip_folder_name)
+        )
+        md_content = f"Content from the zip file `{os.path.basename(local_path)}`:\n\n"
+
+        # Safety check for path traversal
+        if not new_folder.startswith(os.path.dirname(local_path)):
+            return DocumentConverterResult(
+                title=None, text_content=f"[ERROR] Invalid zip file path: {local_path}"
+            )
+
+        try:
+            # Extract the zip file
+            with zipfile.ZipFile(local_path, "r") as zipObj:
+                zipObj.extractall(path=new_folder)
+
+            # Process each extracted file
+            for root, dirs, files in os.walk(new_folder):
+                for name in files:
+                    file_path = os.path.join(root, name)
+                    relative_path = os.path.relpath(file_path, new_folder)
+
+                    # Get file extension
+                    _, file_extension = os.path.splitext(name)
+
+                    # Update kwargs for the file
+                    file_kwargs = kwargs.copy()
+                    file_kwargs["file_extension"] = file_extension
+                    file_kwargs["_parent_converters"] = parent_converters
+
+                    # Try converting the file using available converters
+                    for converter in parent_converters:
+                        # Skip the zip converter to avoid infinite recursion
+                        if isinstance(converter, ZipConverter):
+                            continue
+
+                        result = converter.convert(file_path, **file_kwargs)
+                        if result is not None:
+                            md_content += f"\n## File: {relative_path}\n\n"
+                            md_content += result.text_content + "\n\n"
+                            break
+
+            # Clean up extracted files if specified
+            if kwargs.get("cleanup_extracted", True):
+                shutil.rmtree(new_folder)
+
+            return DocumentConverterResult(title=None, text_content=md_content.strip())
+
+        except zipfile.BadZipFile:
+            return DocumentConverterResult(
+                title=None,
+                text_content=f"[ERROR] Invalid or corrupted zip file: {local_path}",
+            )
+        except Exception as e:
+            return DocumentConverterResult(
+                title=None,
+                text_content=f"[ERROR] Failed to process zip file {local_path}: {str(e)}",
+            )
+
+
 class FileConversionException(BaseException):
     pass
 
@@ -880,6 +962,7 @@ class MarkItDown:
         self.register_page_converter(Mp3Converter())
         self.register_page_converter(ImageConverter())
         self.register_page_converter(PdfConverter())
+        self.register_page_converter(ZipConverter())
 
     def convert(
         self, source: Union[str, requests.Response], **kwargs: Any
@@ -1035,6 +1118,8 @@ class MarkItDown:
 
                 if "mlm_model" not in _kwargs and self._mlm_model is not None:
                     _kwargs["mlm_model"] = self._mlm_model
+                # Add the list of converters for nested processing
+                _kwargs["_parent_converters"] = self._page_converters
 
                 # If we hit an error log it and keep trying
                 try:
