@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
+import zipfile
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
 
