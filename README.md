@@ -23,6 +23,14 @@ result = markitdown.convert("test.xlsx")
 print(result.text_content)
 ```
 
+## Installation
+
+MarkItDown can be installed using pip:
+
+```
+pip install markitdown
+```
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
