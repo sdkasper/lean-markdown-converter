@@ -144,6 +144,12 @@ def test_markitdown_local() -> None:
         text_content = result.text_content.replace("\\", "")
         assert test_string in text_content
 
+    # Test ZIP processing
+    result = markitdown.convert(os.path.join(TEST_FILES_DIR, "test_files.zip"))
+    for test_string in DOCX_TEST_STRINGS:
+        text_content = result.text_content.replace("\\", "")
+        assert test_string in text_content
+
     # Test Wikipedia processing
     result = markitdown.convert(
         os.path.join(TEST_FILES_DIR, "test_wikipedia.html"), url=WIKIPEDIA_TEST_URL
