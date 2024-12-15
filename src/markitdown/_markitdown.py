@@ -26,6 +26,7 @@ import pptx
 import puremagic
 import requests
 from bs4 import BeautifulSoup
+from charset_normalizer import from_path
 
 # Optional Transcription support
 try:
@@ -161,9 +162,7 @@ class PlainTextConverter(DocumentConverter):
         elif "text/" not in content_type.lower():
             return None
 
-        text_content = ""
-        with open(local_path, "rt", encoding="utf-8") as fh:
-            text_content = fh.read()
+        text_content = str(from_path(local_path).best())
         return DocumentConverterResult(
             title=None,
             text_content=text_content,
