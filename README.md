@@ -20,6 +20,14 @@ You can install `markitdown` using pip:
 ```python
 pip install markitdown
 ```
+
+or from the source
+
+```sh
+pip install -e .
+```
+
+
 # Usage
 The API is simple:
 
@@ -56,6 +64,27 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## Installation
+
+To install the dependencies for this project, run the following command in the root of the project:
+
+
+## Running Tests
+
+To run the tests for this project, use the following command:
+
+```sh
+pytest
+```
+
+## Running Pre-commit Checks
+
+If there are pre-commit hooks configured (indicated by the `.pre-commit-config.yaml`), you can test them by running:
+
+```sh
+pre-commit run --all-files
+```
 
 ## Trademarks
 
