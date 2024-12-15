@@ -492,7 +492,9 @@ class DocxConverter(HtmlConverter):
 
         result = None
         with open(local_path, "rb") as docx_file:
-            result = mammoth.convert_to_html(docx_file)
+            style_map = kwargs.get("style_map", None)
+
+            result = mammoth.convert_to_html(docx_file, style_map=style_map)
             html_content = result.value
             result = self._convert(html_content)
 
