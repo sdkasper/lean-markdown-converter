@@ -13,6 +13,22 @@ It presently supports:
 - HTML (special handling of Wikipedia, etc.)
 - Various other text-based formats (csv, json, xml, etc.)
 
+# Installation
+
+You can install `markitdown` using pip:
+
+```python
+pip install markitdown
+```
+
+or from the source
+
+```sh
+pip install -e .
+```
+
+
+# Usage
 The API is simple:
 
 ```python
@@ -23,12 +39,16 @@ result = markitdown.convert("test.xlsx")
 print(result.text_content)
 ```
 
-## Installation
+You can also configure markitdown to use Large Language Models to describe images. To do so you must provide mlm_client and mlm_model parameters to MarkItDown object, according to your specific client.
 
-MarkItDown can be installed using pip:
+```python
+from markitdown import MarkItDown
+from openai import OpenAI
 
-```
-pip install markitdown
+client = OpenAI()
+md = MarkItDown(mlm_client=client, mlm_model="gpt-4o")
+result = md.convert("example.jpg")
+print(result.text_content)
 ```
 
 ## Contributing
@@ -49,9 +69,6 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 To install the dependencies for this project, run the following command in the root of the project:
 
-```sh
-pip install -e .
-```
 
 ## Running Tests
 
