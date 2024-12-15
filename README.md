@@ -15,6 +15,21 @@ It presently supports:
 - HTML (special handling of Wikipedia, etc.)
 - Various other text-based formats (csv, json, xml, etc.)
 
+# Installation
+
+You can install `markitdown` using pip:
+
+```python
+pip install markitdown
+```
+
+or from the source
+
+```sh
+pip install -e .
+```
+
+# Usage
 The API is simple:
 
 ```python
@@ -30,13 +45,30 @@ To use this as a command-line utility, install it and then run it like this:
 ```bash
 markitdown path-to-file.pdf
 ```
+
 This will output Markdown to standard output. You can save it like this:
+
 ```bash
 markitdown path-to-file.pdf > document.md
 ```
+
 You can pipe content to standard input by omitting the argument:
+
 ```bash
 cat path-to-file.pdf | markitdown
+```
+
+
+You can also configure markitdown to use Large Language Models to describe images. To do so you must provide mlm_client and mlm_model parameters to MarkItDown object, according to your specific client.
+
+```python
+from markitdown import MarkItDown
+from openai import OpenAI
+
+client = OpenAI()
+md = MarkItDown(mlm_client=client, mlm_model="gpt-4o")
+result = md.convert("example.jpg")
+print(result.text_content)
 ```
 
 ## Contributing
@@ -52,6 +84,23 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+### Running Tests
+
+To run the tests for this project, use the following command:
+
+```sh
+hatch shell
+hatch test
+```
+
+### Running Pre-commit Checks
+
+If there are pre-commit hooks configured (indicated by the `.pre-commit-config.yaml`), you can test them by running:
+
+```sh
+pre-commit run --all-files
+```
 
 ## Trademarks
 
