@@ -856,6 +856,7 @@ class MarkItDown:
         requests_session: Optional[requests.Session] = None,
         mlm_client: Optional[Any] = None,
         mlm_model: Optional[Any] = None,
+        style_map: Optional[str] = None,
     ):
         if requests_session is None:
             self._requests_session = requests.Session()
@@ -864,6 +865,7 @@ class MarkItDown:
 
         self._mlm_client = mlm_client
         self._mlm_model = mlm_model
+        self._style_map = style_map
 
         self._page_converters: List[DocumentConverter] = []
 
@@ -1037,6 +1039,9 @@ class MarkItDown:
 
                 if "mlm_model" not in _kwargs and self._mlm_model is not None:
                     _kwargs["mlm_model"] = self._mlm_model
+
+                if "style_map" not in _kwargs and self._style_map is not None:
+                    _kwargs["style_map"] = self._style_map
 
                 # If we hit an error log it and keep trying
                 try:

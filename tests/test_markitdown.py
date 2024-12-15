@@ -150,6 +150,15 @@ def test_markitdown_local() -> None:
         text_content = result.text_content.replace("\\", "")
         assert test_string in text_content
 
+    # Test DOCX processing, with comments and setting style_map on init
+    markitdown_with_style_map = MarkItDown(style_map="comment-reference => ")
+    result = markitdown_with_style_map.convert(
+        os.path.join(TEST_FILES_DIR, "test_with_comment.docx")
+    )
+    for test_string in DOCX_COMMENT_TEST_STRINGS:
+        text_content = result.text_content.replace("\\", "")
+        assert test_string in text_content
+
     # Test PPTX processing
     result = markitdown.convert(os.path.join(TEST_FILES_DIR, "test.pptx"))
     for test_string in PPTX_TEST_STRINGS:
