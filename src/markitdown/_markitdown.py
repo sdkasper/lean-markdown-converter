@@ -34,6 +34,7 @@ try:
     # pydub's warning of ffmpeg or avconv missing
     with catch_warnings(record=True) as w:
         import pydub
+
         if w:
             raise ModuleNotFoundError
     import speech_recognition as sr
