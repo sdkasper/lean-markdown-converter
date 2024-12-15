@@ -57,8 +57,8 @@ PPTX_TEST_STRINGS = [
     "44bf7d06-5e7a-4a40-a2e1-a2e42ef28c8a",
     "1b92870d-e3b5-4e65-8153-919f4ff45592",
     "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation",
-    "a3f6004b-6f4f-4ea8-bee3-3741f4dc385f", # chart title
-    "2003", # chart value
+    "a3f6004b-6f4f-4ea8-bee3-3741f4dc385f",  # chart title
+    "2003",  # chart value
 ]
 
 BLOG_TEST_URL = "https://microsoft.github.io/autogen/blog/2023/04/21/LLM-tuning-math"

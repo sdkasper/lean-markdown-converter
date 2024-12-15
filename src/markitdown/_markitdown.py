@@ -586,7 +586,6 @@ class PptxConverter(HtmlConverter):
                 if shape.has_chart:
                     md_content += self._convert_chart_to_markdown(shape.chart)
 
-
                 # Text areas
                 elif shape.has_text_frame:
                     if shape == title:
@@ -621,11 +620,6 @@ class PptxConverter(HtmlConverter):
             return True
         return False
 
-    def _is_chart(self, shape):
-        if shape.shape_type == pptx.enum.shapes.MSO_SHAPE_TYPE.CHART:
-            return True
-        return False
-
     def _convert_chart_to_markdown(self, chart):
         md = "\n\n### Chart"
         if chart.has_title:
@@ -648,6 +642,7 @@ class PptxConverter(HtmlConverter):
         header = markdown_table[0]
         separator = "|" + "|".join(["---"] * len(data[0])) + "|"
         return md + "\n".join([header, separator] + markdown_table[1:])
+
 
 class MediaConverter(DocumentConverter):
     """
