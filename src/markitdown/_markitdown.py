@@ -1071,8 +1071,7 @@ class MarkItDown:
         if ext == "":
             return
         # if ext not in extensions:
-        if True:
-            extensions.append(ext)
+        extensions.append(ext)
 
     def _guess_ext_magic(self, path):
         """Use puremagic (a Python implementation of libmagic) to guess a file's extension based on the first few bytes."""
