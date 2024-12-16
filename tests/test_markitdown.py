@@ -57,6 +57,8 @@ PPTX_TEST_STRINGS = [
     "44bf7d06-5e7a-4a40-a2e1-a2e42ef28c8a",
     "1b92870d-e3b5-4e65-8153-919f4ff45592",
     "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation",
+    "a3f6004b-6f4f-4ea8-bee3-3741f4dc385f",  # chart title
+    "2003",  # chart value
 ]
 
 BLOG_TEST_URL = "https://microsoft.github.io/autogen/blog/2023/04/21/LLM-tuning-math"
@@ -85,6 +87,13 @@ SERP_TEST_STRINGS = [
 SERP_TEST_EXCLUDES = [
     "https://www.bing.com/ck/a?!&&p=",
     "data:image/svg+xml,%3Csvg%20width%3D",
+]
+
+CSV_CP932_TEST_STRINGS = [
+    "名前,年齢,住所",
+    "佐藤太郎,30,東京",
+    "三木英子,25,大阪",
+    "髙橋淳,35,名古屋",
 ]
 
 
@@ -144,6 +153,12 @@ def test_markitdown_local() -> None:
         text_content = result.text_content.replace("\\", "")
         assert test_string in text_content
 
+    # Test ZIP file processing
+    result = markitdown.convert(os.path.join(TEST_FILES_DIR, "test_files.zip"))
+    for test_string in DOCX_TEST_STRINGS:
+        text_content = result.text_content.replace("\\", "")
+        assert test_string in text_content
+
     # Test Wikipedia processing
     result = markitdown.convert(
         os.path.join(TEST_FILES_DIR, "test_wikipedia.html"), url=WIKIPEDIA_TEST_URL
@@ -162,6 +177,12 @@ def test_markitdown_local() -> None:
     for test_string in SERP_TEST_EXCLUDES:
         assert test_string not in text_content
     for test_string in SERP_TEST_STRINGS:
+        assert test_string in text_content
+
+    ## Test non-UTF-8 encoding
+    result = markitdown.convert(os.path.join(TEST_FILES_DIR, "test_mskanji.csv"))
+    text_content = result.text_content.replace("\\", "")
+    for test_string in CSV_CP932_TEST_STRINGS:
         assert test_string in text_content
 
 
