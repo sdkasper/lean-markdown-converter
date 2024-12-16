@@ -7,6 +7,10 @@ RUN apk add --no-cache ffmpeg
 
 RUN pip install markitdown
 
-USER 10000:10000
+# Default USERID and GROUPID
+ARG USERID=10000
+ARG GROUPID=10000
+
+USER $USERID:$GROUPID
 
 ENTRYPOINT [ "markitdown" ]
