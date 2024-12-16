@@ -51,6 +51,13 @@ result = md.convert("example.jpg")
 print(result.text_content)
 ```
 
+You can also use the project as Docker Image:
+
+```sh
+docker build -t markitdown:latest .
+docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
+```
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
