@@ -2,21 +2,15 @@
 #
 # SPDX-License-Identifier: MIT
 import sys
+import argparse
 from ._markitdown import MarkItDown
 
 
 def main():
-    if len(sys.argv) == 1:
-        markitdown = MarkItDown()
-        result = markitdown.convert_stream(sys.stdin.buffer)
-        print(result.text_content)
-    elif len(sys.argv) == 2:
-        markitdown = MarkItDown()
-        result = markitdown.convert(sys.argv[1])
-        print(result.text_content)
-    else:
-        sys.stderr.write(
-            """
+    parser = argparse.ArgumentParser(
+        description='Convert various file formats to markdown.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="""
 SYNTAX: 
     
     markitdown <OPTIONAL: FILENAME>
@@ -34,8 +28,19 @@ EXAMPLE:
 
     markitdown < example.pdf
 """.strip()
-            + "\n"
-        )
+    )
+
+    parser.add_argument('filename', nargs='?')
+    args = parser.parse_args()
+
+    if args.filename is None:
+        markitdown = MarkItDown()
+        result = markitdown.convert_stream(sys.stdin.buffer)
+        print(result.text_content)
+    else:
+        markitdown = MarkItDown()
+        result = markitdown.convert(args.filename)
+        print(result.text_content)
 
 
 if __name__ == "__main__":
