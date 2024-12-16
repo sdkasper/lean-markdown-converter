@@ -96,8 +96,6 @@ hatch test
 
 ### Running Pre-commit Checks
 
-If there are pre-commit hooks configured (indicated by the `.pre-commit-config.yaml`), you can test them by running:
-
 ```sh
 pre-commit run --all-files
 ```
