@@ -15,6 +15,7 @@ import traceback
 import zipfile
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
+from warnings import catch_warnings
 
 import mammoth
 import markdownify
@@ -31,7 +32,13 @@ from charset_normalizer import from_path
 
 # Optional Transcription support
 try:
-    import pydub
+    # Using warnings' catch_warnings to catch
+    # pydub's warning of ffmpeg or avconv missing
+    with catch_warnings(record=True) as w:
+        import pydub
+
+        if w:
+            raise ModuleNotFoundError
     import speech_recognition as sr
 
     IS_AUDIO_TRANSCRIPTION_CAPABLE = True
