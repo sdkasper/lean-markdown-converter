@@ -492,7 +492,9 @@ class DocxConverter(HtmlConverter):
 
         result = None
         with open(local_path, "rb") as docx_file:
-            result = mammoth.convert_to_html(docx_file)
+            style_map = kwargs.get("style_map", None)
+
+            result = mammoth.convert_to_html(docx_file, style_map=style_map)
             html_content = result.value
             result = self._convert(html_content)
 
@@ -999,6 +1001,7 @@ class MarkItDown:
         requests_session: Optional[requests.Session] = None,
         mlm_client: Optional[Any] = None,
         mlm_model: Optional[Any] = None,
+        style_map: Optional[str] = None,
     ):
         if requests_session is None:
             self._requests_session = requests.Session()
@@ -1007,6 +1010,7 @@ class MarkItDown:
 
         self._mlm_client = mlm_client
         self._mlm_model = mlm_model
+        self._style_map = style_map
 
         self._page_converters: List[DocumentConverter] = []
 
@@ -1183,6 +1187,9 @@ class MarkItDown:
                     _kwargs["mlm_model"] = self._mlm_model
                 # Add the list of converters for nested processing
                 _kwargs["_parent_converters"] = self._page_converters
+
+                if "style_map" not in _kwargs and self._style_map is not None:
+                    _kwargs["style_map"] = self._style_map
 
                 # If we hit an error log it and keep trying
                 try:
