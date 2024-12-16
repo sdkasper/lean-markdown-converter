@@ -1003,7 +1003,7 @@ class MarkItDown:
                 self._append_ext(extensions, g)
 
             # Convert
-            result = self._convert(temp_path, extensions, url=response.url)
+            result = self._convert(temp_path, extensions, url=response.url, **kwargs)
         # Clean up
         finally:
             try:
