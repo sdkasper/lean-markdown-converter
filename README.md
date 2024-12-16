@@ -70,6 +70,7 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 To run the tests for this project, use the following command:
 
 ```sh
+pip install hatch
 hatch shell
 hatch test
 ```
