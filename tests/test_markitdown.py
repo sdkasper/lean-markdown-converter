@@ -89,6 +89,13 @@ SERP_TEST_EXCLUDES = [
     "data:image/svg+xml,%3Csvg%20width%3D",
 ]
 
+CSV_CP932_TEST_STRINGS = [
+    "名前,年齢,住所",
+    "佐藤太郎,30,東京",
+    "三木英子,25,大阪",
+    "髙橋淳,35,名古屋",
+]
+
 
 @pytest.mark.skipif(
     skip_remote,
@@ -146,6 +153,12 @@ def test_markitdown_local() -> None:
         text_content = result.text_content.replace("\\", "")
         assert test_string in text_content
 
+    # Test ZIP file processing
+    result = markitdown.convert(os.path.join(TEST_FILES_DIR, "test_files.zip"))
+    for test_string in DOCX_TEST_STRINGS:
+        text_content = result.text_content.replace("\\", "")
+        assert test_string in text_content
+
     # Test Wikipedia processing
     result = markitdown.convert(
         os.path.join(TEST_FILES_DIR, "test_wikipedia.html"), url=WIKIPEDIA_TEST_URL
@@ -164,6 +177,12 @@ def test_markitdown_local() -> None:
     for test_string in SERP_TEST_EXCLUDES:
         assert test_string not in text_content
     for test_string in SERP_TEST_STRINGS:
+        assert test_string in text_content
+
+    ## Test non-UTF-8 encoding
+    result = markitdown.convert(os.path.join(TEST_FILES_DIR, "test_mskanji.csv"))
+    text_content = result.text_content.replace("\\", "")
+    for test_string in CSV_CP932_TEST_STRINGS:
         assert test_string in text_content
 
 
