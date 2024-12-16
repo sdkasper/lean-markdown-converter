@@ -14,6 +14,7 @@ It presently supports:
 - Audio (EXIF metadata, and speech transcription)
 - HTML (special handling of Wikipedia, etc.)
 - Various other text-based formats (csv, json, xml, etc.)
+- ZIP (Iterates over contents and converts each file)
 
 # Installation
 
