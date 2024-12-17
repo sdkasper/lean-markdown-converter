@@ -351,8 +351,11 @@ class YouTubeConverter(DocumentConverter):
                 assert isinstance(params["v"][0], str)
                 video_id = str(params["v"][0])
                 try:
+                    youtube_transcript_languages = kwargs.get(
+                        "youtube_transcript_languages", ("en",)
+                    )
                     # Must be a single transcript.
-                    transcript = YouTubeTranscriptApi.get_transcript(video_id)  # type: ignore
+                    transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=youtube_transcript_languages)  # type: ignore
                     transcript_text = " ".join([part["text"] for part in transcript])  # type: ignore
                     # Alternative formatting:
                     # formatter = TextFormatter()
