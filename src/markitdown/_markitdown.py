@@ -390,6 +390,7 @@ class YouTubeConverter(DocumentConverter):
                         return ret
         return None
 
+
 class IpynbConverter(DocumentConverter):
     """Converts Jupyter Notebook (.ipynb) files to Markdown."""
 
@@ -446,7 +447,10 @@ class IpynbConverter(DocumentConverter):
             )
 
         except Exception as e:
-            raise FileConversionException(f"Error converting .ipynb file: {str(e)}") from e
+            raise FileConversionException(
+                f"Error converting .ipynb file: {str(e)}"
+            ) from e
+
 
 class BingSerpConverter(DocumentConverter):
     """
