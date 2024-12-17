@@ -78,7 +78,51 @@ You can also use the project as Docker Image:
 docker build -t markitdown:latest .
 docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
 ```
+Batch Processing Multiple Files
 
+This extension allows you to convert multiple files to markdown format in a single run. The script processes all supported files in a directory and creates corresponding markdown files.
+
+Features
+
+- Converts multiple files in one operation
+- Supports various file formats (.pptx, .docx, .pdf, .jpg, .jpeg, .png etc. you can change it)
+- Maintains original filenames (changes extension to .md)
+- Includes GPT-4o-latest image descriptions when available
+- Continues processing if individual files fail
+
+Usage
+1. Create a Python script (e.g., convert.py):
+```python
+from markitdown import MarkItDown
+from openai import OpenAI
+import os
+client = OpenAI(api_key="your-api-key-here")
+md = MarkItDown(mlm_client=client, mlm_model="gpt-4o-2024-11-20")
+supported_extensions = ('.pptx', '.docx', '.pdf', '.jpg', '.jpeg', '.png')
+files_to_convert = [f for f in os.listdir('.') if f.lower().endswith(supported_extensions)]
+for file in files_to_convert:
+    print(f"\nConverting {file}...")
+    try:
+        md_file = os.path.splitext(file)[0] + '.md'
+        result = md.convert(file)
+        with open(md_file, 'w') as f:
+            f.write(result.text_content)
+        
+        print(f"Successfully converted {file} to {md_file}")
+    except Exception as e:
+        print(f"Error converting {file}: {str(e)}")
+
+print("\nAll conversions completed!")
+```
+2. Place the script in the same directory as your files
+3. Install required packages: like openai
+4. Run script ```bash python3 convert.py ```
+
+- The script processes all supported files in the current directory
+- Original files remain unchanged
+- New markdown files are created with the same base name
+- Progress and any errors are displayed during conversion
+   
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
