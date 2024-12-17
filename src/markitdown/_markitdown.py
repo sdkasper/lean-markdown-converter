@@ -15,7 +15,7 @@ import traceback
 import zipfile
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
-from warnings import catch_warnings
+from warnings import warn, resetwarnings, catch_warnings
 
 import mammoth
 import markdownify
@@ -44,6 +44,8 @@ try:
     IS_AUDIO_TRANSCRIPTION_CAPABLE = True
 except ModuleNotFoundError:
     pass
+finally:
+    resetwarnings()
 
 # Optional YouTube transcription support
 try:
@@ -1010,13 +1012,45 @@ class MarkItDown:
         self,
         requests_session: Optional[requests.Session] = None,
         llm_client: Optional[Any] = None,
-        llm_model: Optional[Any] = None,
+        llm_model: Optional[str] = None,
         style_map: Optional[str] = None,
+        # Deprecated
+        mlm_client: Optional[Any] = None,
+        mlm_model: Optional[str] = None,
     ):
         if requests_session is None:
             self._requests_session = requests.Session()
         else:
             self._requests_session = requests_session
+
+        # Handle deprecation notices
+        #############################
+        if mlm_client is not None:
+            if llm_client is None:
+                warn(
+                    "'mlm_client' is deprecated, and was renamed 'llm_client'.",
+                    DeprecationWarning,
+                )
+                llm_client = mlm_client
+                mlm_client = None
+            else:
+                raise ValueError(
+                    "'mlm_client' is deprecated, and was renamed 'llm_client'. Do not use both at the same time. Just use 'llm_client' instead."
+                )
+
+        if mlm_model is not None:
+            if llm_model is None:
+                warn(
+                    "'mlm_model' is deprecated, and was renamed 'llm_model'.",
+                    DeprecationWarning,
+                )
+                llm_model = mlm_model
+                mlm_model = None
+            else:
+                raise ValueError(
+                    "'mlm_model' is deprecated, and was renamed 'llm_model'. Do not use both at the same time. Just use 'llm_model' instead."
+                )
+        #############################
 
         self._llm_client = llm_client
         self._llm_model = llm_model
