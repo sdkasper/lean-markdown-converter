@@ -72,11 +72,11 @@ result = md.convert("example.jpg")
 print(result.text_content)
 ```
 
-The prompt of describing images can be customized by providing `mlm_prompt` parameter.
+You can also use the project as Docker Image:
 
-```python
-# ...
-result = md.convert("example.jpg", mlm_prompt="Customized prompt")
+```sh
+docker build -t markitdown:latest .
+docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
 ```
 
 ## Contributing
