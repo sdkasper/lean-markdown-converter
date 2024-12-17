@@ -95,7 +95,7 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ### Running Tests
 
-To run the tests for this project, use the following command:
+To run tests, install `hatch` using `pip` or other methods as described [here](https://hatch.pypa.io/dev/install).
 
 ```sh
 pip install hatch
@@ -104,6 +104,8 @@ hatch test
 ```
 
 ### Running Pre-commit Checks
+
+Please run the pre-commit checks before submitting a PR.
 
 ```sh
 pre-commit run --all-files
