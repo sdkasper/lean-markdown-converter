@@ -59,15 +59,15 @@ You can pipe content to standard input by omitting the argument:
 cat path-to-file.pdf | markitdown
 ```
 
+You can also configure markitdown to use Large Language Models to describe images. To do so you must provide `llm_client` and `llm_model` parameters to MarkItDown object, according to your specific client.
 
-You can also configure markitdown to use Large Language Models to describe images. To do so you must provide `mlm_client` and `mlm_model` parameters to MarkItDown object, according to your specific client.
 
 ```python
 from markitdown import MarkItDown
 from openai import OpenAI
 
 client = OpenAI()
-md = MarkItDown(mlm_client=client, mlm_model="gpt-4o")
+md = MarkItDown(llm_client=client, llm_model="gpt-4o")
 result = md.convert("example.jpg")
 print(result.text_content)
 ```
