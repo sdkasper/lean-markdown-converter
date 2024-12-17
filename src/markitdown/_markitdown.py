@@ -15,6 +15,7 @@ import traceback
 import zipfile
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
+from warnings import catch_warnings
 
 import mammoth
 import markdownify
@@ -31,7 +32,13 @@ from charset_normalizer import from_path
 
 # Optional Transcription support
 try:
-    import pydub
+    # Using warnings' catch_warnings to catch
+    # pydub's warning of ffmpeg or avconv missing
+    with catch_warnings(record=True) as w:
+        import pydub
+
+        if w:
+            raise ModuleNotFoundError
     import speech_recognition as sr
 
     IS_AUDIO_TRANSCRIPTION_CAPABLE = True
@@ -344,8 +351,11 @@ class YouTubeConverter(DocumentConverter):
                 assert isinstance(params["v"][0], str)
                 video_id = str(params["v"][0])
                 try:
+                    youtube_transcript_languages = kwargs.get(
+                        "youtube_transcript_languages", ("en",)
+                    )
                     # Must be a single transcript.
-                    transcript = YouTubeTranscriptApi.get_transcript(video_id)  # type: ignore
+                    transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=youtube_transcript_languages)  # type: ignore
                     transcript_text = " ".join([part["text"] for part in transcript])  # type: ignore
                     # Alternative formatting:
                     # formatter = TextFormatter()
@@ -492,7 +502,9 @@ class DocxConverter(HtmlConverter):
 
         result = None
         with open(local_path, "rb") as docx_file:
-            result = mammoth.convert_to_html(docx_file)
+            style_map = kwargs.get("style_map", None)
+
+            result = mammoth.convert_to_html(docx_file, style_map=style_map)
             html_content = result.value
             result = self._convert(html_content)
 
@@ -999,6 +1011,7 @@ class MarkItDown:
         requests_session: Optional[requests.Session] = None,
         llm_client: Optional[Any] = None,
         llm_model: Optional[Any] = None,
+        style_map: Optional[str] = None,
     ):
         if requests_session is None:
             self._requests_session = requests.Session()
@@ -1007,6 +1020,7 @@ class MarkItDown:
 
         self._llm_client = llm_client
         self._llm_model = llm_model
+        self._style_map = style_map
 
         self._page_converters: List[DocumentConverter] = []
 
@@ -1149,7 +1163,7 @@ class MarkItDown:
                 self._append_ext(extensions, g)
 
             # Convert
-            result = self._convert(temp_path, extensions, url=response.url)
+            result = self._convert(temp_path, extensions, url=response.url, **kwargs)
         # Clean up
         finally:
             try:
@@ -1184,6 +1198,9 @@ class MarkItDown:
 
                 # Add the list of converters for nested processing
                 _kwargs["_parent_converters"] = self._page_converters
+
+                if "style_map" not in _kwargs and self._style_map is not None:
+                    _kwargs["style_map"] = self._style_map
 
                 # If we hit an error log it and keep trying
                 try:

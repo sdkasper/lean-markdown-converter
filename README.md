@@ -60,7 +60,7 @@ cat path-to-file.pdf | markitdown
 ```
 
 
-You can also configure markitdown to use Large Language Models to describe images. To do so you must provide mlm_client and mlm_model parameters to MarkItDown object, according to your specific client.
+You can also configure markitdown to use Large Language Models to describe images. To do so you must provide `mlm_client` and `mlm_model` parameters to MarkItDown object, according to your specific client.
 
 ```python
 from markitdown import MarkItDown
@@ -70,6 +70,13 @@ client = OpenAI()
 md = MarkItDown(mlm_client=client, mlm_model="gpt-4o")
 result = md.convert("example.jpg")
 print(result.text_content)
+```
+
+You can also use the project as Docker Image:
+
+```sh
+docker build -t markitdown:latest .
+docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
 ```
 
 ## Contributing
