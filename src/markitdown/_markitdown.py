@@ -217,14 +217,15 @@ class HtmlConverter(DocumentConverter):
 
         assert isinstance(webpage_text, str)
 
-        return DocumentConverterResult( 
+        return DocumentConverterResult(
             title=None if soup.title is None else soup.title.string,
             text_content=webpage_text,
         )
 
+
 class RSSConverter(DocumentConverter):
     """Convert RSS / Atom type to markdown"""
-    
+
     def convert(
         self, local_path: str, **kwargs
     ) -> Union[None, DocumentConverterResult]:
@@ -250,12 +251,14 @@ class RSSConverter(DocumentConverter):
         else:
             # not rss or atom
             return None
-    
+
         return result
-    
-    def _parse_atom_type(self, doc: minidom.Document) -> Union[None, DocumentConverterResult]:
+
+    def _parse_atom_type(
+        self, doc: minidom.Document
+    ) -> Union[None, DocumentConverterResult]:
         """Parse the type of an Atom feed.
-        
+
         Returns None if the feed type is not recognized or something goes wrong.
         """
         try:
@@ -271,7 +274,7 @@ class RSSConverter(DocumentConverter):
                 entry_summary = self._get_data_by_tag_name(entry, "summary")
                 entry_updated = self._get_data_by_tag_name(entry, "updated")
                 entry_content = self._get_data_by_tag_name(entry, "content")
-                
+
                 if entry_title:
                     md_text += f"\n## {entry_title}\n"
                 if entry_updated:
@@ -287,10 +290,12 @@ class RSSConverter(DocumentConverter):
             )
         except BaseException as _:
             return None
-    
-    def _parse_rss_type(self, doc: minidom.Document) -> Union[None, DocumentConverterResult]:
+
+    def _parse_rss_type(
+        self, doc: minidom.Document
+    ) -> Union[None, DocumentConverterResult]:
         """Parse the type of an RSS feed.
-        
+
         Returns None if the feed type is not recognized or something goes wrong.
         """
         try:
@@ -313,7 +318,7 @@ class RSSConverter(DocumentConverter):
                 description = self._get_data_by_tag_name(item, "description")
                 pubDate = self._get_data_by_tag_name(item, "pubDate")
                 content = self._get_data_by_tag_name(item, "content:encoded")
-                
+
                 if title:
                     md_text += f"\n## {title}\n"
                 if pubDate:
@@ -322,7 +327,7 @@ class RSSConverter(DocumentConverter):
                     md_text += self._parse_content(description)
                 if content:
                     md_text += self._parse_content(content)
-            
+
             return DocumentConverterResult(
                 title=channel_title,
                 text_content=md_text,
@@ -330,7 +335,7 @@ class RSSConverter(DocumentConverter):
         except BaseException as _:
             print(traceback.format_exc())
             return None
-    
+
     def _parse_content(self, content: str) -> str:
         """Parse the content of an RSS feed item"""
         try:
@@ -339,8 +344,10 @@ class RSSConverter(DocumentConverter):
             return _CustomMarkdownify().convert_soup(soup)
         except BaseException as _:
             return content
-        
-    def _get_data_by_tag_name(self, element: minidom.Element, tag_name: str) -> Union[str, None]:
+
+    def _get_data_by_tag_name(
+        self, element: minidom.Element, tag_name: str
+    ) -> Union[str, None]:
         """Get data from first child element with the given tag name.
         Returns None when no such element is found.
         """
@@ -351,6 +358,7 @@ class RSSConverter(DocumentConverter):
         if fc:
             return fc.data
         return None
+
 
 class WikipediaConverter(DocumentConverter):
     """Handle Wikipedia pages separately, focusing only on the main document content."""

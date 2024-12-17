@@ -95,7 +95,7 @@ RSS_TEST_STRINGS = [
     "The Official Microsoft Blog",
     "In the case of AI, it is absolutely true that the industry is moving incredibly fast",
 ]
-    
+
 
 WIKIPEDIA_TEST_URL = "https://en.wikipedia.org/wiki/Microsoft"
 WIKIPEDIA_TEST_STRINGS = [
@@ -230,7 +230,7 @@ def test_markitdown_local() -> None:
         assert test_string not in text_content
     for test_string in SERP_TEST_STRINGS:
         assert test_string in text_content
-        
+
     # Test RSS processing
     result = markitdown.convert(os.path.join(TEST_FILES_DIR, "test_rss.xml"))
     text_content = result.text_content.replace("\\", "")
