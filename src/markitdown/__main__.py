@@ -8,7 +8,7 @@ from ._markitdown import MarkItDown
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert various file formats to markdown.',
+        description="Convert various file formats to markdown.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         usage="""
 SYNTAX: 
@@ -27,10 +27,10 @@ EXAMPLE:
     OR 
 
     markitdown < example.pdf
-""".strip()
+""".strip(),
     )
 
-    parser.add_argument('filename', nargs='?')
+    parser.add_argument("filename", nargs="?")
     args = parser.parse_args()
 
     if args.filename is None:
