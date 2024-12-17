@@ -271,7 +271,7 @@ class RSSConverter(DocumentConverter):
                 entry_content = self._get_data_by_tag_name(entry, "content")
                 
                 if entry_title:
-                    md_text += f"## {entry_title}\n"
+                    md_text += f"\n## {entry_title}\n"
                 if entry_updated:
                     md_text += f"Updated on: {entry_updated}\n"
                 if entry_summary:
@@ -313,7 +313,7 @@ class RSSConverter(DocumentConverter):
                 content = self._get_data_by_tag_name(item, "content:encoded")
                 
                 if title:
-                    md_text += f"## {title}\n"
+                    md_text += f"\n## {title}\n"
                 if pubDate:
                     md_text += f"Published on: {pubDate}\n"
                 if description:
