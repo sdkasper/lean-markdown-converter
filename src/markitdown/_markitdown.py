@@ -15,6 +15,7 @@ import traceback
 import zipfile
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
+from warnings import catch_warnings
 
 import mammoth
 import markdownify
@@ -31,7 +32,13 @@ from charset_normalizer import from_path
 
 # Optional Transcription support
 try:
-    import pydub
+    # Using warnings' catch_warnings to catch
+    # pydub's warning of ffmpeg or avconv missing
+    with catch_warnings(record=True) as w:
+        import pydub
+
+        if w:
+            raise ModuleNotFoundError
     import speech_recognition as sr
 
     IS_AUDIO_TRANSCRIPTION_CAPABLE = True
@@ -344,8 +351,11 @@ class YouTubeConverter(DocumentConverter):
                 assert isinstance(params["v"][0], str)
                 video_id = str(params["v"][0])
                 try:
+                    youtube_transcript_languages = kwargs.get(
+                        "youtube_transcript_languages", ("en",)
+                    )
                     # Must be a single transcript.
-                    transcript = YouTubeTranscriptApi.get_transcript(video_id)  # type: ignore
+                    transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=youtube_transcript_languages)  # type: ignore
                     transcript_text = " ".join([part["text"] for part in transcript])  # type: ignore
                     # Alternative formatting:
                     # formatter = TextFormatter()
@@ -1153,7 +1163,7 @@ class MarkItDown:
                 self._append_ext(extensions, g)
 
             # Convert
-            result = self._convert(temp_path, extensions, url=response.url)
+            result = self._convert(temp_path, extensions, url=response.url, **kwargs)
         # Clean up
         finally:
             try:
