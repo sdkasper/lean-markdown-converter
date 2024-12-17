@@ -793,7 +793,7 @@ class Mp3Converter(WavConverter):
 
 class ImageConverter(MediaConverter):
     """
-    Converts images to markdown via extraction of metadata (if `exiftool` is installed), OCR (if `easyocr` is installed), and description via a multimodal LLM (if an mlm_client is configured).
+    Converts images to markdown via extraction of metadata (if `exiftool` is installed), OCR (if `easyocr` is installed), and description via a multimodal LLM (if an llm_client is configured).
     """
 
     def convert(self, local_path, **kwargs) -> Union[None, DocumentConverterResult]:
@@ -823,17 +823,17 @@ class ImageConverter(MediaConverter):
                     md_content += f"{f}: {metadata[f]}\n"
 
         # Try describing the image with GPTV
-        mlm_client = kwargs.get("mlm_client")
-        mlm_model = kwargs.get("mlm_model")
-        if mlm_client is not None and mlm_model is not None:
+        llm_client = kwargs.get("llm_client")
+        llm_model = kwargs.get("llm_model")
+        if llm_client is not None and llm_model is not None:
             md_content += (
                 "\n# Description:\n"
-                + self._get_mlm_description(
+                + self._get_llm_description(
                     local_path,
                     extension,
-                    mlm_client,
-                    mlm_model,
-                    prompt=kwargs.get("mlm_prompt"),
+                    llm_client,
+                    llm_model,
+                    prompt=kwargs.get("llm_prompt"),
                 ).strip()
                 + "\n"
             )
@@ -843,11 +843,11 @@ class ImageConverter(MediaConverter):
             text_content=md_content,
         )
 
-    def _get_mlm_description(self, local_path, extension, client, model, prompt=None):
+    def _get_llm_description(self, local_path, extension, client, model, prompt=None):
         if prompt is None or prompt.strip() == "":
             prompt = "Write a detailed caption for this image."
 
-        sys.stderr.write(f"MLM Prompt:\n{prompt}\n")
+        sys.stderr.write(f"llm Prompt:\n{prompt}\n")
 
         data_uri = ""
         with open(local_path, "rb") as image_file:
@@ -1009,8 +1009,8 @@ class MarkItDown:
     def __init__(
         self,
         requests_session: Optional[requests.Session] = None,
-        mlm_client: Optional[Any] = None,
-        mlm_model: Optional[Any] = None,
+        llm_client: Optional[Any] = None,
+        llm_model: Optional[Any] = None,
         style_map: Optional[str] = None,
     ):
         if requests_session is None:
@@ -1018,8 +1018,8 @@ class MarkItDown:
         else:
             self._requests_session = requests_session
 
-        self._mlm_client = mlm_client
-        self._mlm_model = mlm_model
+        self._llm_client = llm_client
+        self._llm_model = llm_model
         self._style_map = style_map
 
         self._page_converters: List[DocumentConverter] = []
@@ -1190,11 +1190,12 @@ class MarkItDown:
                     _kwargs.update({"file_extension": ext})
 
                 # Copy any additional global options
-                if "mlm_client" not in _kwargs and self._mlm_client is not None:
-                    _kwargs["mlm_client"] = self._mlm_client
+                if "llm_client" not in _kwargs and self._llm_client is not None:
+                    _kwargs["llm_client"] = self._llm_client
 
-                if "mlm_model" not in _kwargs and self._mlm_model is not None:
-                    _kwargs["mlm_model"] = self._mlm_model
+                if "llm_model" not in _kwargs and self._llm_model is not None:
+                    _kwargs["llm_model"] = self._llm_model
+
                 # Add the list of converters for nested processing
                 _kwargs["_parent_converters"] = self._page_converters
 
