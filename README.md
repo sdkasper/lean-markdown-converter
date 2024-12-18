@@ -64,7 +64,7 @@ docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
     
 <summary>Batch Processing Multiple Files</summary>
 
-This extension allows you to convert multiple files to markdown format in a single run. The script processes all supported files in a directory and creates corresponding markdown files.
+This example shows how to convert multiple files to markdown format in a single run. The script processes all supported files in a directory and creates corresponding markdown files.
 
 ### Features
 
