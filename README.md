@@ -66,13 +66,6 @@ docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
 
 This example shows how to convert multiple files to markdown format in a single run. The script processes all supported files in a directory and creates corresponding markdown files.
 
-### Features
-
-- Converts multiple files in one operation
-- Supports various file formats (.pptx, .docx, .pdf, .jpg, .jpeg, .png etc. you can change it)
-- Maintains original filenames (changes extension to .md)
-- Includes GPT-4o-latest image descriptions when available
-- Continues processing if individual files fail
 
 ### Usage
 1. Create a Python script (e.g., convert.py):
