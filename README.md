@@ -78,11 +78,13 @@ You can also use the project as Docker Image:
 docker build -t markitdown:latest .
 docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
 ```
-Batch Processing Multiple Files
+<details>
+    
+<summary>Batch Processing Multiple Files</summary>
 
 This extension allows you to convert multiple files to markdown format in a single run. The script processes all supported files in a directory and creates corresponding markdown files.
 
-Features
+### Features
 
 - Converts multiple files in one operation
 - Supports various file formats (.pptx, .docx, .pdf, .jpg, .jpeg, .png etc. you can change it)
@@ -90,7 +92,7 @@ Features
 - Includes GPT-4o-latest image descriptions when available
 - Continues processing if individual files fail
 
-Usage
+### Usage
 1. Create a Python script (e.g., convert.py):
 ```python
 from markitdown import MarkItDown
@@ -122,6 +124,8 @@ print("\nAll conversions completed!")
 - Original files remain unchanged
 - New markdown files are created with the same base name
 - Progress and any errors are displayed during conversion
+
+</details>
    
 ## Contributing
 
