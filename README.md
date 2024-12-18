@@ -93,10 +93,7 @@ print("\nAll conversions completed!")
 3. Install required packages: like openai
 4. Run script ```bash python3 convert.py ```
 
-- The script processes all supported files in the current directory
-- Original files remain unchanged
-- New markdown files are created with the same base name
-- Progress and any errors are displayed during conversion
+Note that original files will remain unchanged and new markdown files are created with the same base name.
 
 </details>
    
