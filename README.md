@@ -90,11 +90,7 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
     hatch test
     ```
 
-- Run pre-commit checks before submitting a PR:
-        ```sh
-        # pip install pre-commit
-        pre-commit run --all-files
-        ```
+- Run pre-commit checks before submitting a PR: `pre-commit run --all-files`
 
 ## Trademarks
 
