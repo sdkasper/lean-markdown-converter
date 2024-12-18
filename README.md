@@ -91,7 +91,7 @@ print("\nAll conversions completed!")
 ```
 2. Place the script in the same directory as your files
 3. Install required packages: like openai
-4. Run script ```bash python3 convert.py ```
+4. Run script ```bash python convert.py ```
 
 Note that original files will remain unchanged and new markdown files are created with the same base name.
 
