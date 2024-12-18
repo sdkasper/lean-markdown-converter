@@ -14,7 +14,7 @@ It supports:
 - Text-based formats (CSV, JSON, XML)
 - ZIP files (iterates over contents)
 
-To install MarkItDown, use pip: `pip install markitdown`. Alternatively, you can install it from the source: `pip install -e .`.
+To install MarkItDown, use pip: `pip install markitdown`. Alternatively, you can install it from the source: `pip install -e .`
 
 ## Usage
 
