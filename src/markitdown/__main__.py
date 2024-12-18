@@ -11,7 +11,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Convert various file formats to markdown.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        usage=dedent("""
+        usage=dedent(
+            """
             SYNTAX: 
                 
                 markitdown <OPTIONAL: FILENAME>
@@ -28,7 +29,8 @@ def main():
                 OR 
             
                 markitdown < example.pdf
-            """).strip(),
+            """
+        ).strip(),
     )
 
     parser.add_argument("filename", nargs="?")
