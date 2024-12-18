@@ -1144,9 +1144,14 @@ class ZipConverter(DocumentConverter):
                 # Safeguard against path traversal
                 for member in zipObj.namelist():
                     member_path = os.path.normpath(os.path.join(extraction_dir, member))
-                    if not os.path.commonprefix([extraction_dir, member_path]) == extraction_dir:
-                        raise ValueError(f"Path traversal detected in zip file: {member}")
-                
+                    if (
+                        not os.path.commonprefix([extraction_dir, member_path])
+                        == extraction_dir
+                    ):
+                        raise ValueError(
+                            f"Path traversal detected in zip file: {member}"
+                        )
+
                 # Extract all files safely
                 zipObj.extractall(path=extraction_dir)
 
