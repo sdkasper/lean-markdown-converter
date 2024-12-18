@@ -882,7 +882,7 @@ class WavConverter(MediaConverter):
     """
 
     def convert(self, local_path, **kwargs) -> Union[None, DocumentConverterResult]:
-        # Bail if not a XLSX
+        # Bail if not a WAV
         extension = kwargs.get("file_extension", "")
         if extension.lower() != ".wav":
             return None
@@ -998,7 +998,7 @@ class ImageConverter(MediaConverter):
     """
 
     def convert(self, local_path, **kwargs) -> Union[None, DocumentConverterResult]:
-        # Bail if not a XLSX
+        # Bail if not an image
         extension = kwargs.get("file_extension", "")
         if extension.lower() not in [".jpg", ".jpeg", ".png"]:
             return None
