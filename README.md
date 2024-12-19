@@ -67,7 +67,7 @@ docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
 This example shows how to convert multiple files to markdown format in a single run. The script processes all supported files in a directory and creates corresponding markdown files.
 
 
-```python
+```python convert.py
 from markitdown import MarkItDown
 from openai import OpenAI
 import os
