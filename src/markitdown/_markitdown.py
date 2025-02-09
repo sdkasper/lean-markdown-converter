@@ -46,6 +46,9 @@ from azure.identity import DefaultAzureCredential
 # This constant is a temporary fix until the bug is resolved.
 CONTENT_FORMAT = "markdown"
 
+# Override mimetype for csv to fix issue on windows
+mimetypes.add_type("text/csv", ".csv")
+
 # Optional Transcription support
 IS_AUDIO_TRANSCRIPTION_CAPABLE = False
 try:
