@@ -4,8 +4,8 @@
 import argparse
 import sys
 from textwrap import dedent
-from __about__ import __version__
-from _markitdown import MarkItDown, DocumentConverterResult
+from .__about__ import __version__
+from ._markitdown import MarkItDown, DocumentConverterResult
 
 
 def main():
@@ -51,24 +51,27 @@ def main():
         help="show the version number and exit",
     )
 
-    parser.add_argument("filename", nargs="?")
     parser.add_argument(
         "-o",
         "--output",
         help="Output file name. If not provided, output is written to stdout.",
     )
+
     parser.add_argument(
         "-d",
         "--use-docintel",
         action="store_true",
         help="Use Document Intelligence to extract text instead of offline conversion. Requires a valid Document Intelligence Endpoint.",
     )
+
     parser.add_argument(
         "-e",
         "--endpoint",
         type=str,
         help="Document Intelligence Endpoint. Required if using Document Intelligence.",
     )
+
+    parser.add_argument("filename", nargs="?")
     args = parser.parse_args()
 
     if args.use_docintel:
