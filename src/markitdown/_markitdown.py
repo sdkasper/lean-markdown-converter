@@ -217,7 +217,7 @@ class HtmlConverter(DocumentConverter):
         return result
 
     def _convert(self, html_content: str) -> Union[None, DocumentConverterResult]:
-        """Helper function that converts and HTML string."""
+        """Helper function that converts an HTML string."""
 
         # Parse the string
         soup = BeautifulSoup(html_content, "html.parser")
