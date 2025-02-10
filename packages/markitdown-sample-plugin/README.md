@@ -7,7 +7,7 @@
 
 This project shows how to create a sample plugin for MarkItDown. The most important parts are as follows:
 
-FNext, implement your custom DocumentConverter:
+Next, implement your custom DocumentConverter:
 
 ```python
 from typing import Union
