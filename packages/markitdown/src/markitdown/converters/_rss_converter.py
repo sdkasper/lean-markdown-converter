@@ -8,7 +8,9 @@ from .._base_converter import DocumentConverter, DocumentConverterResult
 
 PRECISE_MIME_TYPE_PREFIXES = [
     "application/rss",
+    "application/rss+xml",
     "application/atom",
+    "application/atom+xml",
 ]
 
 PRECISE_FILE_EXTENSIONS = [".rss", ".atom"]
