@@ -569,6 +569,23 @@ class MarkItDown:
         """
         guesses: List[StreamInfo] = []
 
+        # Enhance the base guess with information based on the extension or mimetype
+        enhanced_guess = base_guess.copy_and_update()
+
+        # If there's an extension and no mimetype, try to guess the mimetype
+        if base_guess.mimetype is None and base_guess.extension is not None:
+            _m, _ = mimetypes.guess_type(
+                "placeholder" + base_guess.extension, strict=False
+            )
+            if _m is not None:
+                enhanced_guess = enhanced_guess.copy_and_update(mimetype=_m)
+
+        # If there's a mimetype and no extension, try to guess the extension
+        if base_guess.mimetype is not None and base_guess.extension is None:
+            _e = mimetypes.guess_all_extensions(base_guess.mimetype, strict=False)
+            if len(_e) > 0:
+                enhanced_guess = enhanced_guess.copy_and_update(extension=_e[0])
+
         # Call magika to guess from the stream
         cur_pos = file_stream.tell()
         try:
@@ -624,7 +641,7 @@ class MarkItDown:
                     )
                 else:
                     # The magika guess was incompatible with the base guess, so add both guesses
-                    guesses.append(base_guess)
+                    guesses.append(enhanced_guess)
                     guesses.append(
                         StreamInfo(
                             mimetype=result.prediction.output.mime_type,
@@ -637,7 +654,7 @@ class MarkItDown:
                     )
             else:
                 # There were no other guesses, so just add the base guess
-                guesses.append(base_guess)
+                guesses.append(enhanced_guess)
         finally:
             file_stream.seek(cur_pos)
 
