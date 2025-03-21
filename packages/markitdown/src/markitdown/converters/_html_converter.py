@@ -56,9 +56,9 @@ class HtmlConverter(DocumentConverter):
         body_elm = soup.find("body")
         webpage_text = ""
         if body_elm:
-            webpage_text = _CustomMarkdownify().convert_soup(body_elm)
+            webpage_text = _CustomMarkdownify(**kwargs).convert_soup(body_elm)
         else:
-            webpage_text = _CustomMarkdownify().convert_soup(soup)
+            webpage_text = _CustomMarkdownify(**kwargs).convert_soup(soup)
 
         assert isinstance(webpage_text, str)
 

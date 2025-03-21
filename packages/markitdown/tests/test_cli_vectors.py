@@ -7,9 +7,17 @@ import locale
 from typing import List
 
 if __name__ == "__main__":
-    from _test_vectors import GENERAL_TEST_VECTORS, FileTestVector
+    from _test_vectors import (
+        GENERAL_TEST_VECTORS,
+        DATA_URI_TEST_VECTORS,
+        FileTestVector,
+    )
 else:
-    from ._test_vectors import GENERAL_TEST_VECTORS, FileTestVector
+    from ._test_vectors import (
+        GENERAL_TEST_VECTORS,
+        DATA_URI_TEST_VECTORS,
+        FileTestVector,
+    )
 
 from markitdown import (
     MarkItDown,
@@ -149,6 +157,39 @@ def test_convert_url(shared_tmp_dir, test_vector):
         assert test_string not in stdout
 
 
+@pytest.mark.parametrize("test_vector", DATA_URI_TEST_VECTORS)
+def test_output_to_file_with_data_uris(shared_tmp_dir, test_vector) -> None:
+    """Test CLI functionality when keep_data_uris is enabled"""
+
+    output_file = os.path.join(shared_tmp_dir, test_vector.filename + ".output")
+    result = subprocess.run(
+        [
+            "python",
+            "-m",
+            "markitdown",
+            "--keep-data-uris",
+            "-o",
+            output_file,
+            os.path.join(TEST_FILES_DIR, test_vector.filename),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"CLI exited with error: {result.stderr}"
+    assert os.path.exists(output_file), f"Output file not created: {output_file}"
+
+    with open(output_file, "r") as f:
+        output_data = f.read()
+        for test_string in test_vector.must_include:
+            assert test_string in output_data
+        for test_string in test_vector.must_not_include:
+            assert test_string not in output_data
+
+    os.remove(output_file)
+    assert not os.path.exists(output_file), f"Output file not deleted: {output_file}"
+
+
 if __name__ == "__main__":
     import sys
     import tempfile
@@ -156,6 +197,7 @@ if __name__ == "__main__":
     """Runs this file's tests from the command line."""
 
     with tempfile.TemporaryDirectory() as tmp_dir:
+        # General tests
         for test_function in [
             test_output_to_stdout,
             test_output_to_file,
@@ -169,4 +211,17 @@ if __name__ == "__main__":
                 )
                 test_function(tmp_dir, test_vector)
                 print("OK")
+
+        # Data URI tests
+        for test_function in [
+            test_output_to_file_with_data_uris,
+        ]:
+            for test_vector in DATA_URI_TEST_VECTORS:
+                print(
+                    f"Running {test_function.__name__} on {test_vector.filename}...",
+                    end="",
+                )
+                test_function(tmp_dir, test_vector)
+                print("OK")
+
     print("All tests passed!")

@@ -140,13 +140,20 @@ class PptxConverter(DocumentConverter):
                     alt_text = re.sub(r"[\r\n\[\]]", " ", alt_text)
                     alt_text = re.sub(r"\s+", " ", alt_text).strip()
 
-                    # A placeholder name
-                    filename = re.sub(r"\W", "", shape.name) + ".jpg"
-                    md_content += "\n![" + alt_text + "](" + filename + ")\n"
+                    # If keep_data_uris is True, use base64 encoding for images
+                    if kwargs.get("keep_data_uris", False):
+                        blob = shape.image.blob
+                        content_type = shape.image.content_type or "image/png"
+                        b64_string = base64.b64encode(blob).decode("utf-8")
+                        md_content += f"\n![{alt_text}](data:{content_type};base64,{b64_string})\n"
+                    else:
+                        # A placeholder name
+                        filename = re.sub(r"\W", "", shape.name) + ".jpg"
+                        md_content += "\n![" + alt_text + "](" + filename + ")\n"
 
                 # Tables
                 if self._is_table(shape):
-                    md_content += self._convert_table_to_markdown(shape.table)
+                    md_content += self._convert_table_to_markdown(shape.table, **kwargs)
 
                 # Charts
                 if shape.has_chart:
@@ -193,7 +200,7 @@ class PptxConverter(DocumentConverter):
             return True
         return False
 
-    def _convert_table_to_markdown(self, table):
+    def _convert_table_to_markdown(self, table, **kwargs):
         # Write the table as HTML, then convert it to Markdown
         html_table = "<html><body><table>"
         first_row = True
@@ -208,7 +215,10 @@ class PptxConverter(DocumentConverter):
             first_row = False
         html_table += "</table></body></html>"
 
-        return self._html_converter.convert_string(html_table).markdown.strip() + "\n"
+        return (
+            self._html_converter.convert_string(html_table, **kwargs).markdown.strip()
+            + "\n"
+        )
 
     def _convert_chart_to_markdown(self, chart):
         try:
