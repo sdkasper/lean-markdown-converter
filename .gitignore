@@ -1,3 +1,10 @@
+# MarkItDown Converter specific
+logs/
+conversion_config.json
+
+# PyInstaller artifacts
+*.spec
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
