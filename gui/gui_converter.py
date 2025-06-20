@@ -1,104 +1,241 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
-APP_NAME = "LeanProductivity MarkItDown Batch Converter no GUI"
-APP_DESCRIPTION = "A no GUI batch converter for MarkItDown to convert various file formats to Markdown."
-VERSION = "00.09.20250620"
-AUTHOR_NAME = "Sascha D. Kasper - LeanProductivity"
+APP_NAME = "LeanProductivity MarkItDown Batch Converter with GUI"
+VERSION = "01.00.20250620"
+AUTHOR_NAME = "Sascha D. Kasper – LeanProductivity"
+AUTHOR_URL = "https://sascha-kasper.com"
 HELP_URL = "https://github.com/microsoft/markitdown"
-NOTE = "STILL NOT SUPPORTING MP3 AND M4A IN THE COMPILED APP VERSION DUE TO FFmpeg ISSUES."
 # ──────────────────────────────────────────────────────────────────────────
 
 import os
+import sys
+import json
+import threading
+import shutil
+import concurrent.futures
 from pathlib import Path
+from datetime import datetime
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
 from markitdown import MarkItDown
 
-# --- Optional: FFMPEG path for audio support (if pydub or similar is used) ---
-try:
-    from pydub import AudioSegment
-    ffmpeg_path = os.path.join("resources", "bin", "ffmpeg.exe")
-    if not Path(ffmpeg_path).is_file():
-        raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_path}")
-    AudioSegment.converter = ffmpeg_path
-except ImportError:
-    pass  # pydub not installed or not needed for current file types
-except Exception as e:
-    print(f"⚠️ FFmpeg configuration warning: {e}")
+# ─── RUNTIME PATH HANDLER FOR PYINSTALLER ─────────────────────────────────
+def resource_path(rel_path):
+    """Handles paths whether running from script or bundled exe."""
+    if getattr(sys, "frozen", False):
+        return os.path.join(sys._MEIPASS, rel_path)
+    return os.path.join(os.path.abspath("."), rel_path)
 
-# --- Configuration ---
-input_folder = Path(r"d:\GitProjects\Input\Demo Files")  # set this to your input folder
-output_folder = Path(r"d:\GitProjects\Output")           # set this to your output folder
+# ─── CONSTANTS ─────────────────────────────────────────────────────────────
+CONFIG_FILE = "conversion_config.json"
+LOGS_DIR = "logs"
+os.makedirs(LOGS_DIR, exist_ok=True)
+SUPPORTED_EXTENSIONS = [
+    ".bmp", ".csv", ".doc", ".docx", ".epub", ".gif", ".htm", ".html",
+    ".ipynb", ".jpeg", ".jpg", ".json", ".m4a", ".mp3", ".msg", ".pdf", ".png",
+    ".ppt", ".pptx", ".tiff", ".wav", ".xls", ".xlsx", ".xml", ".zip"
+]
 
-# --- Extension input from user ---
-ext_input = input("Enter file extensions to convert (comma-separated, e.g. docx,pdf,html): ")
-supported_extensions = {
-    f".{ext.strip().lower()}"
-    for ext in ext_input.split(",")
-    if ext.strip()
-}
+# ─── GUI APP ──────────────────────────────────────────────────────────────
+class FileConverterApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title(APP_NAME)
+        self.config = self.load_config()
+        self.cancelled = False
+        self.build_ui()
+        self.root.protocol("WM_DELETE_WINDOW", self.cancel)
 
-force_convert = False  # Set to True to ignore modification times
-dry_run = False        # Set to True to simulate conversion only
+    def build_ui(self):
+        # Input folder
+        tk.Label(self.root, text="Input Folder:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
+        self.input_var = tk.StringVar(value=self.config.get("input_folder", ""))
+        tk.Entry(self.root, textvariable=self.input_var, width=50).grid(row=0, column=1)
+        tk.Button(self.root, text="Browse...", command=self.browse_input).grid(row=0, column=2)
 
-# --- Init ---
-md = MarkItDown()
-files_converted = 0
-files_skipped = 0
-errors = 0
+        # Output folder
+        tk.Label(self.root, text="Output Folder:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
+        self.output_var = tk.StringVar(value=self.config.get("output_folder", ""))
+        tk.Entry(self.root, textvariable=self.output_var, width=50).grid(row=1, column=1)
+        tk.Button(self.root, text="Browse...", command=self.browse_output).grid(row=1, column=2)
 
-# --- Conversion ---
-for root, _, files in os.walk(input_folder):
-    for file in files:
-        src_path = Path(root) / file
-        if src_path.suffix.lower() not in supported_extensions:
-            continue
+        # Extensions
+        self.select_all_var = tk.BooleanVar(value=False)
+        self.ext_vars = {}
+        tk.Label(self.root, text="Select File Types:").grid(row=2, column=0, sticky="ne", padx=5, pady=(10,0))
+        ext_frame = tk.Frame(self.root)
+        ext_frame.grid(row=2, column=1, columnspan=2, sticky="w", pady=(10,0))
+        tk.Checkbutton(ext_frame, text="Select All", variable=self.select_all_var, command=self.toggle_all).grid(row=0, column=0, sticky="w")
+        for i, ext in enumerate(SUPPORTED_EXTENSIONS):
+            var = tk.BooleanVar()
+            default_exts = self.config.get("extensions", {})
+            if isinstance(default_exts, list):
+                var.set(ext in default_exts)
+            else:
+                var.set(default_exts.get(ext, False))
+            self.ext_vars[ext] = var
+            tk.Checkbutton(ext_frame, text=ext, variable=var).grid(row=(i//6)+1, column=(i%6), sticky="w", padx=2)
 
-        rel_path = src_path.relative_to(input_folder)
-        dst_path = output_folder / rel_path.with_suffix(".md")
-        dst_path.parent.mkdir(parents=True, exist_ok=True)
+        # Options
+        self.force_convert = tk.BooleanVar(value=self.config.get("force", False))
+        self.enable_logging = tk.BooleanVar(value=self.config.get("logging", True))
+        self.dry_run = tk.BooleanVar(value=self.config.get("dry_run", False))
+        opt_frame = tk.Frame(self.root)
+        opt_frame.grid(row=3, column=1, sticky="w", pady=(10,0))
+        tk.Checkbutton(opt_frame, text="Force convert all files", variable=self.force_convert).pack(anchor="w")
+        tk.Checkbutton(opt_frame, text="Enable logging to file", variable=self.enable_logging).pack(anchor="w")
+        tk.Checkbutton(opt_frame, text="Dry run only", variable=self.dry_run).pack(anchor="w")
 
-        if dst_path.exists() and not force_convert:
-            if dst_path.stat().st_mtime >= src_path.stat().st_mtime:
-                print(f"⏭️  Skipped (up-to-date): {rel_path}")
-                files_skipped += 1
-                continue
+        # Progress bar
+        self.progress_var = tk.DoubleVar(value=0)
+        self.progress_bar = ttk.Progressbar(self.root, maximum=100, variable=self.progress_var, length=500)
+        self.progress_bar.grid(row=4, column=0, columnspan=3, pady=(10,0), padx=10)
+        self.progress_bar.grid_remove()
 
-        if dry_run:
-            print(f"🔎 Would convert: {rel_path}")
-            files_converted += 1
-            continue
+        # Buttons
+        btn_frame = tk.Frame(self.root)
+        btn_frame.grid(row=5, column=1, pady=15)
+        self.start_btn = tk.Button(btn_frame, text="Start Conversion", command=self.on_start)
+        self.start_btn.pack(side="left", padx=5)
+        tk.Button(btn_frame, text="Cancel", command=self.cancel).pack(side="left", padx=5)
 
+    def toggle_all(self):
+        for var in self.ext_vars.values():
+            var.set(self.select_all_var.get())
+
+    def browse_input(self):
+        path = filedialog.askdirectory()
+        if path:
+            self.input_var.set(path)
+
+    def browse_output(self):
+        path = filedialog.askdirectory()
+        if path:
+            self.output_var.set(path)
+
+    def save_config(self):
+        data = {
+            "input_folder": self.input_var.get(),
+            "output_folder": self.output_var.get(),
+            "extensions": {ext: var.get() for ext, var in self.ext_vars.items()},
+            "force": self.force_convert.get(),
+            "logging": self.enable_logging.get(),
+            "dry_run": self.dry_run.get()
+        }
         try:
-            # Build subprocess environment with additional PATH entries
-            env = os.environ.copy()
-            env["PATH"] = (
-                os.path.abspath("resources/bin") + os.pathsep +
-                os.getcwd() + os.pathsep +
-                env["PATH"]
-            )
-
-            import subprocess
-            result = subprocess.run(
-                ["markitdown", str(src_path.resolve())],
-                capture_output=True,
-                text=True,
-                check=True,
-                env=env,
-                cwd=os.getcwd()
-            )
-
-            with open(dst_path, "w", encoding="utf-8") as f:
-                f.write(result.stdout)
-            print(f"✅ Converted: {rel_path}")
-            files_converted += 1
-
-        except subprocess.CalledProcessError as e:
-            print(f"❌ CLI failed for {rel_path}: {e.stderr.strip()}")
-            errors += 1
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
         except Exception as e:
-            print(f"❌ Error converting {rel_path}: {type(e).__name__} – {e}")
-            errors += 1
+            messagebox.showwarning("Config Save Failed", f"Could not save settings: {e}")
 
-# --- Summary ---
-print("\n=== Conversion Summary ===")
-print(f"Converted: {files_converted}")
-print(f"Skipped  : {files_skipped}")
-print(f"Errors   : {errors}")
+    def load_config(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                messagebox.showwarning("Config Load Failed", "Could not read settings file. Using defaults.")
+        return {}
+
+    def cancel(self):
+        self.cancelled = True
+        self.root.quit()
+
+    def on_start(self):
+        input_dir = Path(self.input_var.get())
+        output_dir = Path(self.output_var.get())
+        selected_exts = {ext for ext, var in self.ext_vars.items() if var.get()}
+
+        if not input_dir.is_dir():
+            messagebox.showerror("Invalid input", "Input folder does not exist.")
+            return
+        if not output_dir.is_dir():
+            output_dir.mkdir(parents=True, exist_ok=True)
+        if not selected_exts:
+            messagebox.showwarning("No extensions", "Please select at least one file type.")
+            return
+
+        self.save_config()
+        self.start_btn.config(state="disabled")
+        self.progress_bar.grid()
+
+        files_to_convert = []
+        skipped = 0
+        for root_dir, _, files in os.walk(input_dir):
+            for file in files:
+                src = Path(root_dir) / file
+                if src.suffix.lower() in selected_exts:
+                    rel = src.relative_to(input_dir)
+                    dst = output_dir / rel.with_suffix(".md")
+                    existed = dst.exists()
+                    if existed and not self.force_convert.get() and dst.stat().st_mtime >= src.stat().st_mtime:
+                        skipped += 1
+                        continue
+                    files_to_convert.append((str(src), str(dst), existed))
+
+        if self.dry_run.get():
+            msg = (f"Dry Run:\n\nTotal: {len(files_to_convert)+skipped}\nConvert: {len(files_to_convert)}\nSkipped: {skipped}")
+            if not messagebox.askyesno("Dry Run", msg + "\n\nProceed?" ):
+                self.start_btn.config(state="normal")
+                self.progress_bar.grid_remove()
+                return
+
+        threading.Thread(target=self.worker_thread, args=(files_to_convert,), daemon=True).start()
+
+    def worker_thread(self, tasks):
+        converted = overwritten = failed = 0
+        log_lines = []
+        total = len(tasks)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_path = Path(LOGS_DIR) / f"conversion_log_{timestamp}.log"
+
+        # Initialize converter once per thread
+        md = MarkItDown()
+
+        for i, (src, dst, existed) in enumerate(tasks, 1):
+            if self.cancelled: break
+            try:
+                result = md.convert(src)
+                Path(dst).parent.mkdir(parents=True, exist_ok=True)
+                with open(dst, "w", encoding="utf-8") as f:
+                    f.write(result.text_content)
+                status = "overwritten" if existed else "converted"
+            except Exception as e:
+                status = "error"
+                err = str(e)
+
+            if status == "converted":
+                converted += 1
+                log_lines.append(f"[{datetime.now()}] ✅ Converted: {src}")
+            elif status == "overwritten":
+                overwritten += 1
+                log_lines.append(f"[{datetime.now()}] 🔄 Overwritten: {src}")
+            else:
+                failed += 1
+                log_lines.append(f"[{datetime.now()}] ❌ Error: {src} → {err}")
+
+            self.progress_var.set((i/total)*100)
+            if i % 10 == 0 or i == total:
+                self.root.update()
+
+        summary = f"Converted: {converted}\nOverwritten: {overwritten}\nErrors: {failed}\n"
+        if self.enable_logging.get():
+            try:
+                with open(log_path, "w", encoding="utf-8") as f:
+                    f.write("\n".join(log_lines))
+                if messagebox.askyesno("Done", summary + "View log?" ):
+                    os.startfile(str(log_path))
+            except Exception as e:
+                messagebox.showwarning("Log Save Failed", f"Could not write log: {e}")
+        else:
+            messagebox.showinfo("Done", summary)
+
+        self.start_btn.config(state="normal")
+        self.progress_bar.grid_remove()
+
+# ─── MAIN ─────────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
+    root = tk.Tk()
+    app = FileConverterApp(root)
+    root.mainloop()
