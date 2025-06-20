@@ -1,1 +1,2 @@
+*.exe filter=lfs diff=lfs merge=lfs -text
 app/setup_0_10.exe filter=lfs diff=lfs merge=lfs -text
