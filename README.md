@@ -3,7 +3,15 @@
 
 This repository contains two Python-based tools for **batch converting various file formats to Markdown** using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). It's designed for both technical and non-technical users who need to process multiple files efficiently.
 
-## 📦 What's Included
+## 🖥️ Windows Standalone App
+I also provide a Windows 11 standalone installer - no Python, Git, or additional dependencies are required. Everything (Magika models, FFmpeg, etc.) is bundled into a single EXE. You can download it here: https://kspr.me/bulkmd
+
+Run LPMarkdownConverterSetup.exe and follow the prompts to install.
+
+Launch via Start Menu > LeanProductivity Markdown Converter or use the optional desktop shortcut.
+
+## Scripts
+### 📦 What's Included
 
 | Script                          | Description                                                  |
 |---------------------------------|--------------------------------------------------------------|
@@ -15,7 +23,7 @@ This repository contains two Python-based tools for **batch converting various f
 
 Both tools support `.docx`, `.pdf`, `.html`, `.json`, `.xml`, `.txt`, `.jpg`, `.png`, `.csv`, and many more.
 
-## 🧰 How the Scripts Differ
+### 🧰 How the Scripts Differ
 
 | Feature               | `cli_converter.py`              | `gui_converter.py`            |
 |----------------------|----------------------------------|--------------------------------|
@@ -24,19 +32,19 @@ Both tools support `.docx`, `.pdf`, `.html`, `.json`, `.xml`, `.txt`, `.jpg`, `.
 | Use case             | Developers / Power users         | Non-technical users            |
 | Automation-friendly  | ✅ Yes                            | ❌ Manual input only           |
 
-## ▶️ How to Use: CLI Script
+### ▶️ How to Use: CLI Script
 ```bash
 python cli_converter.py
-````
-
+```
 🛠 You will be prompted to:
 * Enter input/output folders
 * Choose which file types to convert (comma-separated)
 * Enable/disable logging, dry run, and force conversion
 
-🧠 Config is saved between runs in `conversion_config.json`.
+💾 Config is saved between runs in `conversion_config.json`.
 
-## 🖱️ How to Use: GUI Script
+### 🖱️ How to Use: GUI Script
+
 ```bash
 python gui/gui_converter.py
 ```
@@ -47,7 +55,7 @@ python gui/gui_converter.py
 
 🧠 All preferences are saved automatically.
 
-## 🔧 Requirements
+### 🔧 Requirements
 
 * Python 3.8+
 * [`markitdown`](https://github.com/microsoft/markitdown)
