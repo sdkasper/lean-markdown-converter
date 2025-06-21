@@ -1,6 +1,6 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "LeanProductivity MarkItDown Batch Converter with GUI"
-VERSION = "01.00.20250620"
+VERSION = "01.01.20250621"
 AUTHOR_NAME = "Sascha D. Kasper – LeanProductivity"
 AUTHOR_URL = "https://sascha-kasper.com"
 HELP_URL = "https://github.com/microsoft/markitdown"
