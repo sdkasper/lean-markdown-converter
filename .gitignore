@@ -1,6 +1,7 @@
 # MarkItDown Converter specific
 logs/
 conversion_config.json
+resources/conversion_config.json
 
 # PyInstaller artifacts
 *.spec

@@ -1,6 +1,6 @@
 {
-    "input_folder": "D:/GitProjects/Input/Demo Files",
-    "output_folder": "D:/GitProjects/Output",
+    "input_folder": "",
+    "output_folder": "",
     "extensions": {
         ".bmp": false,
         ".csv": false,
@@ -14,10 +14,10 @@
         ".jpeg": false,
         ".jpg": false,
         ".json": false,
-        ".m4a": true,
-        ".mp3": true,
+        ".m4a": false,
+        ".mp3": false,
         ".msg": false,
-        ".pdf": true,
+        ".pdf": false,
         ".png": false,
         ".ppt": false,
         ".pptx": false,
@@ -25,10 +25,9 @@
         ".wav": false,
         ".xls": false,
         ".xlsx": false,
-        ".xml": false,
-        ".zip": false
+        ".xml": false
     },
-    "force_convert": true,
-    "enable_logging": true,
-    "dry_run": false
+    "force": false,
+    "dry_run": false,
+    "logging": true
 }
