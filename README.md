@@ -83,6 +83,23 @@ This runs `pyinstaller LPMarkdownConverter.spec`, producing `dist/LPMarkdownConv
 
 To create the Windows installer, open `setup/LPMarkdownConverterSetup.iss` in [Inno Setup](https://jrsoftware.org/isinfo.php) and compile.
 
+## ✅ Testing & CI/CD
+
+The project includes a comprehensive test suite (117 tests) with GitHub Actions CI/CD integration:
+
+- **Tests run on:** Python 3.11 and 3.13 (automated on every push)
+- **Test framework:** pytest
+- **Coverage:** 26.56% of codebase
+- **Pass rate:** 99.1%
+
+Run tests locally with:
+
+```bash
+pytest tests/
+```
+
+View the full release notes and test results: [GitHub Releases](https://github.com/sdkasper/lean-markdown-converter/releases)
+
 ## 📁 Project Structure
 
 ```
