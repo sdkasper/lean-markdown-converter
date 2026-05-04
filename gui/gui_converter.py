@@ -1,6 +1,6 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "LeanProductivity MarkItDown Batch Converter with GUI"
-VERSION = "01.01.20250621"
+VERSION = "01.02.20260220"
 AUTHOR_NAME = "Sascha D. Kasper – LeanProductivity"
 AUTHOR_URL = "https://sascha-kasper.com"
 HELP_URL = "https://github.com/microsoft/markitdown"
@@ -10,8 +10,6 @@ import os
 import sys
 import json
 import threading
-import shutil
-import concurrent.futures
 from pathlib import Path
 from datetime import datetime
 import tkinter as tk
@@ -26,14 +24,26 @@ def resource_path(rel_path):
     return os.path.join(os.path.abspath("."), rel_path)
 
 # ─── CONSTANTS ─────────────────────────────────────────────────────────────
-CONFIG_FILE = "conversion_config.json"
-LOGS_DIR = "logs"
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, "frozen", False):
+    CONFIG_FILE = "conversion_config.json"
+    LOGS_DIR = "logs"
+else:
+    CONFIG_FILE = os.path.join(_SCRIPT_DIR, "..", "conversion_config.json")
+    LOGS_DIR = os.path.join(_SCRIPT_DIR, "..", "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 SUPPORTED_EXTENSIONS = [
     ".bmp", ".csv", ".doc", ".docx", ".epub", ".gif", ".htm", ".html",
     ".ipynb", ".jpeg", ".jpg", ".json", ".m4a", ".mp3", ".msg", ".pdf", ".png",
     ".ppt", ".pptx", ".tiff", ".wav", ".xls", ".xlsx", ".xml", ".zip"
 ]
+
+# ─── FFMPEG / PYDUB SETUP ─────────────────────────────────────────────────
+try:
+    from pydub import AudioSegment
+    AudioSegment.converter = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
+except ImportError:
+    pass
 
 # ─── GUI APP ──────────────────────────────────────────────────────────────
 class FileConverterApp:
@@ -42,8 +52,9 @@ class FileConverterApp:
         self.root.title(APP_NAME)
         self.config = self.load_config()
         self.cancelled = False
+        self.converting = False
         self.build_ui()
-        self.root.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def build_ui(self):
         # Input folder
@@ -137,8 +148,21 @@ class FileConverterApp:
         return {}
 
     def cancel(self):
+        if self.converting:
+            self.cancelled = True
+
+    def _on_close(self):
         self.cancelled = True
-        self.root.quit()
+        self.root.destroy()
+
+    @staticmethod
+    def _is_safe_path(base_dir: Path, target: Path) -> bool:
+        """Return True if target resolves to a path within base_dir (prevents symlink/junction traversal)."""
+        try:
+            target.resolve().relative_to(base_dir.resolve())
+            return True
+        except ValueError:
+            return False
 
     def on_start(self):
         input_dir = Path(self.input_var.get())
@@ -155,6 +179,7 @@ class FileConverterApp:
             return
 
         self.save_config()
+        self.cancelled = False
         self.start_btn.config(state="disabled")
         self.progress_bar.grid()
 
@@ -163,9 +188,15 @@ class FileConverterApp:
         for root_dir, _, files in os.walk(input_dir):
             for file in files:
                 src = Path(root_dir) / file
+                if not self._is_safe_path(input_dir, src):
+                    log_lines_pre = []
+                    log_lines_pre.append(f"[{datetime.now()}] Skipped (traversal): {src}")
+                    continue
                 if src.suffix.lower() in selected_exts:
                     rel = src.relative_to(input_dir)
                     dst = output_dir / rel.with_suffix(".md")
+                    if not self._is_safe_path(output_dir, dst):
+                        continue
                     existed = dst.exists()
                     if existed and not self.force_convert.get() and dst.stat().st_mtime >= src.stat().st_mtime:
                         skipped += 1
@@ -179,9 +210,10 @@ class FileConverterApp:
                 self.progress_bar.grid_remove()
                 return
 
-        threading.Thread(target=self.worker_thread, args=(files_to_convert,), daemon=True).start()
+        self.converting = True
+        threading.Thread(target=self.worker_thread, args=(files_to_convert, skipped), daemon=True).start()
 
-    def worker_thread(self, tasks):
+    def worker_thread(self, tasks, skipped):
         converted = overwritten = failed = 0
         log_lines = []
         total = len(tasks)
@@ -205,32 +237,43 @@ class FileConverterApp:
 
             if status == "converted":
                 converted += 1
-                log_lines.append(f"[{datetime.now()}] ✅ Converted: {src}")
+                log_lines.append(f"[{datetime.now()}] Converted: {src}")
             elif status == "overwritten":
                 overwritten += 1
-                log_lines.append(f"[{datetime.now()}] 🔄 Overwritten: {src}")
+                log_lines.append(f"[{datetime.now()}] Overwritten: {src}")
             else:
                 failed += 1
-                log_lines.append(f"[{datetime.now()}] ❌ Error: {src} → {err}")
+                log_lines.append(f"[{datetime.now()}] Error: {src} -> {err}")
 
-            self.progress_var.set((i/total)*100)
-            if i % 10 == 0 or i == total:
-                self.root.update()
+            self.root.after(0, lambda pct=(i/total)*100: self.progress_var.set(pct))
 
-        summary = f"Converted: {converted}\nOverwritten: {overwritten}\nErrors: {failed}\n"
-        if self.enable_logging.get():
+        summary = f"Converted: {converted}\nOverwritten: {overwritten}\nSkipped: {skipped}\nErrors: {failed}\n"
+        logging_enabled = self.enable_logging.get()
+
+        if logging_enabled:
             try:
                 with open(log_path, "w", encoding="utf-8") as f:
                     f.write("\n".join(log_lines))
-                if messagebox.askyesno("Done", summary + "View log?" ):
-                    os.startfile(str(log_path))
-            except Exception as e:
-                messagebox.showwarning("Log Save Failed", f"Could not write log: {e}")
-        else:
-            messagebox.showinfo("Done", summary)
+            except Exception:
+                log_path = None
 
+        self.root.after(0, self._on_conversion_done, summary, logging_enabled, log_path)
+
+    def _on_conversion_done(self, summary, logging_enabled, log_path):
+        self.converting = False
         self.start_btn.config(state="normal")
         self.progress_bar.grid_remove()
+
+        if logging_enabled and log_path:
+            if messagebox.askyesno("Done", summary + "View log?"):
+                try:
+                    os.startfile(str(log_path))
+                except Exception as e:
+                    messagebox.showwarning("Log Open Failed", f"Could not open log: {e}")
+        elif logging_enabled and not log_path:
+            messagebox.showwarning("Done", summary + "Log file could not be saved.")
+        else:
+            messagebox.showinfo("Done", summary)
 
 # ─── MAIN ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
