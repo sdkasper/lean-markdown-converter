@@ -35,7 +35,7 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 SUPPORTED_EXTENSIONS = [
     ".bmp", ".csv", ".doc", ".docx", ".epub", ".gif", ".htm", ".html",
     ".ipynb", ".jpeg", ".jpg", ".json", ".m4a", ".mp3", ".msg", ".pdf", ".png",
-    ".ppt", ".pptx", ".tiff", ".wav", ".xls", ".xlsx", ".xml", ".zip"
+    ".ppt", ".pptx", ".tiff", ".wav", ".xls", ".xlsx", ".xml"
 ]
 
 # ─── FFMPEG / PYDUB SETUP ─────────────────────────────────────────────────
