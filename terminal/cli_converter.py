@@ -19,6 +19,11 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(_SCRIPT_DIR, "..", "conversion_config.json")
 LOGS_DIR = os.path.join(_SCRIPT_DIR, "..", "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
+SUPPORTED_EXTENSIONS = {
+    ".bmp", ".csv", ".doc", ".docx", ".epub", ".gif", ".htm", ".html",
+    ".ipynb", ".jpeg", ".jpg", ".json", ".m4a", ".mp3", ".msg", ".pdf", ".png",
+    ".ppt", ".pptx", ".tiff", ".wav", ".xls", ".xlsx", ".xml"
+}
 
 # Optional: FFmpeg for audio support via pydub
 try:
@@ -87,11 +92,18 @@ if __name__ == "__main__":
         default_ext_str = ','.join(raw_exts)
     ext_input = input(f"Enter file extensions (comma-separated) [{default_ext_str}]: ").strip()
     ext_raw = ext_input or default_ext_str
-    supported_extensions = {
-        f".{ext.strip().lower()}"
+    requested_extensions = {
+        (e if e.startswith(".") else f".{e}")
         for ext in ext_raw.split(",")
-        if ext.strip()
+        if (e := ext.strip().lower())
     }
+    unsupported = requested_extensions - SUPPORTED_EXTENSIONS
+    if unsupported:
+        print(f"Warning: Ignoring unsupported extension(s): {', '.join(sorted(unsupported))}")
+    supported_extensions = requested_extensions & SUPPORTED_EXTENSIONS
+    if not supported_extensions:
+        print("Error: No supported extensions selected. Exiting.")
+        sys.exit(1)
 
     force_convert = input(f"Force convert all files? (y/n) [{'y' if cfg.get('force', False) else 'n'}]: ").strip().lower() or ('y' if cfg.get("force", False) else 'n')
     dry_run = input(f"Dry run only? (y/n) [{'y' if cfg.get('dry_run', False) else 'n'}]: ").strip().lower() or ('y' if cfg.get("dry_run", False) else 'n')
