@@ -13,7 +13,7 @@ Run `LPMarkdownConverterSetup.exe` and follow the prompts to install. Launch via
 
 ## 📦 Supported Formats
 
-`.bmp` `.csv` `.doc` `.docx` `.epub` `.gif` `.htm` `.html` `.ipynb` `.jpeg` `.jpg` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.png` `.ppt` `.pptx` `.tiff` `.wav` `.xls` `.xlsx` `.xml` `.zip`
+`.bmp` `.csv` `.doc` `.docx` `.epub` `.gif` `.htm` `.html` `.ipynb` `.jpeg` `.jpg` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.png` `.ppt` `.pptx` `.tiff` `.wav` `.xls` `.xlsx` `.xml`
 
 Audio formats (`.mp3`, `.m4a`, `.wav`) require FFmpeg — bundled in `resources/bin/ffmpeg.exe` for the standalone app.
 
