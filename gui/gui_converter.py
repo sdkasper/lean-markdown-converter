@@ -9,6 +9,7 @@ HELP_URL = "https://github.com/microsoft/markitdown"
 import os
 import sys
 import json
+import subprocess
 import threading
 from pathlib import Path
 from datetime import datetime
@@ -270,7 +271,7 @@ class FileConverterApp:
         if logging_enabled and log_path:
             if messagebox.askyesno("Done", summary + "View log?"):
                 try:
-                    os.startfile(str(log_path))
+                    subprocess.Popen(["notepad.exe", str(log_path)])
                 except Exception as e:
                     messagebox.showwarning("Log Open Failed", f"Could not open log: {e}")
         elif logging_enabled and not log_path:

@@ -10,6 +10,7 @@ NOTE = "STILL NOT SUPPORTING MP3 AND M4A IN THE COMPILED APP VERSION DUE TO FFmp
 import os
 import sys
 import json
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from markitdown import MarkItDown
@@ -193,6 +194,6 @@ if __name__ == "__main__":
         view = input("View log file? (y/n): ").strip().lower()
         if view == 'y':
             try:
-                os.startfile(str(log_path))
+                subprocess.Popen(["notepad.exe", str(log_path)])
             except Exception as e:
                 print(f"Could not open log file: {e}")
