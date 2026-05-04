@@ -1,0 +1,76 @@
+name: Test Suite
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
+
+jobs:
+  test:
+    name: pytest - Python ${{ matrix.python-version }}
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Git LFS is used for .exe and .zip — skip LFS objects in CI
+          # (test fixtures are checked in as plain files, not LFS objects)
+          lfs: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install pytest and coverage tools
+        run: pip install pytest pytest-cov
+
+      - name: Run test suite with coverage
+        # Coverage threshold is set conservatively because gui_converter.py
+        # contains substantial tkinter UI code that cannot be tested headlessly,
+        # and cli_converter.py logic lives inside a __main__ guard.
+        # The importable functions (is_safe_path, load_config, save_config,
+        # constants) are covered at ~100%; the 27% total reflects structural
+        # limits, not test quality.
+        run: >
+          pytest tests/
+          --cov=gui
+          --cov=terminal
+          --cov-report=xml
+          --cov-report=term-missing
+          --cov-fail-under=25
+        env:
+          # Prevent tkinter from trying to connect to a display in headless CI
+          # (imports still work; we just avoid instantiating Tk windows)
+          DISPLAY: ""
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml-py${{ matrix.python-version }}
+          path: coverage.xml
+          retention-days: 14
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+          verbose: false
