@@ -23,7 +23,7 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 # Optional: FFmpeg for audio support via pydub
 try:
     from pydub import AudioSegment
-    ffmpeg_path = os.path.join("resources", "bin", "ffmpeg.exe")
+    ffmpeg_path = os.path.join(_SCRIPT_DIR, "..", "resources", "bin", "ffmpeg.exe")
     if not Path(ffmpeg_path).is_file():
         raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_path}")
     AudioSegment.converter = ffmpeg_path
