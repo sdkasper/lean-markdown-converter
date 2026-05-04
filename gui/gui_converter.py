@@ -225,6 +225,7 @@ class FileConverterApp:
 
         for i, (src, dst, existed) in enumerate(tasks, 1):
             if self.cancelled: break
+            err = ""
             try:
                 result = md.convert(src)
                 Path(dst).parent.mkdir(parents=True, exist_ok=True)
