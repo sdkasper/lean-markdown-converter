@@ -26,8 +26,10 @@ def resource_path(rel_path):
 # ─── CONSTANTS ─────────────────────────────────────────────────────────────
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if getattr(sys, "frozen", False):
-    CONFIG_FILE = "conversion_config.json"
-    LOGS_DIR = "logs"
+    _APP_DATA_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "LeanProductivity")
+    os.makedirs(_APP_DATA_DIR, exist_ok=True)
+    CONFIG_FILE = os.path.join(_APP_DATA_DIR, "config.json")
+    LOGS_DIR = os.path.join(_APP_DATA_DIR, "logs")
 else:
     CONFIG_FILE = os.path.join(_SCRIPT_DIR, "..", "conversion_config.json")
     LOGS_DIR = os.path.join(_SCRIPT_DIR, "..", "logs")
