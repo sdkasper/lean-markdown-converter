@@ -113,7 +113,7 @@ if __name__ == "__main__":
     save_config({
         "input_folder": str(input_folder),
         "output_folder": str(output_folder),
-        "extensions": list(supported_extensions),
+        "extensions": {ext: True for ext in supported_extensions},
         "force": force_convert == 'y',
         "dry_run": dry_run == 'y',
         "logging": logging_enabled == 'y'
