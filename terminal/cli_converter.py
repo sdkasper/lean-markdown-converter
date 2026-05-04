@@ -35,13 +35,19 @@ except Exception as e:
 # ─── LOAD OR PROMPT CONFIG ────────────────────────────────────────────────
 def load_config():
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not read settings file, using defaults. ({e})")
     return {}
 
 def save_config(config):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=4)
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4)
+    except Exception as e:
+        print(f"Warning: Could not save settings. ({e})")
 
 def is_safe_path(base_dir: Path, target: Path) -> bool:
     """Return True if target resolves to a path within base_dir (prevents symlink/junction traversal)."""
