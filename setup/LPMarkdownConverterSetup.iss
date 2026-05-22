@@ -2,7 +2,7 @@
 ; Places only the standalone EXE and License in Program Files, creates Start Menu and optional desktop shortcuts.
 
 #define MyAppName "LeanProductivity Markdown Converter"
-#define MyAppVersion "1.03"
+#define MyAppVersion "1.04"
 #define MyAppPublisher "LeanProductivity"
 #define MyAppURL "[https://sascha-kasper.com](https://sascha-kasper.com)"
 #define MyAppExeName "LPMarkdownConverter.exe"
