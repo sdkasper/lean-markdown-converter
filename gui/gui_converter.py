@@ -44,7 +44,9 @@ SUPPORTED_EXTENSIONS = [
 # ─── FFMPEG / PYDUB SETUP ─────────────────────────────────────────────────
 try:
     from pydub import AudioSegment
-    AudioSegment.converter = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
+    ffmpeg_path = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
+    AudioSegment.converter = ffmpeg_path
+    AudioSegment.ffprobe = ffmpeg_path
 except ImportError:
     pass
 
