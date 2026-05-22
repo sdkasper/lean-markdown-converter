@@ -2,7 +2,7 @@
 ; Places only the standalone EXE and License in Program Files, creates Start Menu and optional desktop shortcuts.
 
 #define MyAppName "LeanProductivity Markdown Converter"
-#define MyAppVersion "1.01"
+#define MyAppVersion "1.02"
 #define MyAppPublisher "LeanProductivity"
 #define MyAppURL "[https://sascha-kasper.com](https://sascha-kasper.com)"
 #define MyAppExeName "LPMarkdownConverter.exe"
@@ -26,10 +26,10 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
-LicenseFile=D:\GitProjects\lp-bulk-markdown-converter\setup\LICENSE.txt
+LicenseFile=D:\GitProjects\lean-markdown-converter\setup\LICENSE.txt
 
 ; Installer output settings
-OutputDir=D:\GitProjects\lp-bulk-markdown-converter\setup
+OutputDir=D:\GitProjects\lean-markdown-converter\setup
 OutputBaseFilename=LPMarkdownConverterSetup
 SolidCompression=yes
 WizardStyle=modern
@@ -41,9 +41,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "D:\GitProjects\lp-bulk-markdown-converter\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\GitProjects\lp-bulk-markdown-converter\resources\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "D:\GitProjects\lp-bulk-markdown-converter\setup\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\GitProjects\lean-markdown-converter\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\GitProjects\lean-markdown-converter\resources\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "D:\GitProjects\lean-markdown-converter\setup\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
