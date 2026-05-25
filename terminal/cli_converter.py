@@ -88,6 +88,33 @@ def prompt_path(prompt_msg: str, default: str = None) -> str:
                 except Exception as e:
                     print(f"Failed to create directory: {e}")
 
+def parse_extensions_from_config(raw_exts):
+    """Parse extensions from config (handles both dict and list formats for backward compat)."""
+    if isinstance(raw_exts, dict):
+        return ','.join(k for k, v in raw_exts.items() if v)
+    else:
+        return ','.join(raw_exts)
+
+def normalize_extensions(ext_input: str, default_ext_str: str) -> set:
+    """Normalize comma-separated extension input into a set of lowercase extensions."""
+    ext_raw = ext_input or default_ext_str
+    requested_extensions = {
+        (e if e.startswith(".") else f".{e}")
+        for ext in ext_raw.split(",")
+        if (e := ext.strip().lower())
+    }
+    return requested_extensions
+
+def parse_yes_no_response(response: str, default: bool) -> bool:
+    """Parse a yes/no response, with fallback to default for empty or invalid input."""
+    r = response.strip().lower()
+    if r == 'y':
+        return True
+    elif r == 'n':
+        return False
+    else:
+        return default
+
 if __name__ == "__main__":
     cfg = load_config()
     input_folder = Path(prompt_path("Enter input folder path", cfg.get("input_folder")))

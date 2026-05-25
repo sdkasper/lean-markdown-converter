@@ -19,8 +19,10 @@ import gui.gui_converter as gui_mod
 CLI_EXTS = {e.lower() for e in cli_mod.SUPPORTED_EXTENSIONS}
 GUI_EXTS = {e.lower() for e in gui_mod.SUPPORTED_EXTENSIONS}
 
-# Expected exact count across both modules (24 types, no .zip)
-EXPECTED_COUNT = 24
+# Expected exact count across both modules (18 types, no .zip, no images)
+# Images (.jpg, .png, .bmp, .gif, .tiff) intentionally excluded because MarkItDown
+# cannot extract text from images without an LLM configured.
+EXPECTED_COUNT = 18
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -106,7 +108,9 @@ class TestZipExcluded:
 class TestCommonFormatsPresent:
     """Core document and media types that users depend on must be present."""
 
-    REQUIRED = [".pdf", ".docx", ".xlsx", ".pptx", ".csv", ".html", ".jpg", ".png"]
+    # .jpg and .png intentionally excluded - images are not supported
+    # MarkItDown cannot extract text from images without an LLM configured
+    REQUIRED = [".pdf", ".docx", ".xlsx", ".pptx", ".csv", ".html"]
 
     @pytest.mark.parametrize("ext", REQUIRED)
     def test_required_extension_in_cli(self, ext):
