@@ -1,10 +1,9 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
-APP_NAME = "LeanProductivity MarkItDown Batch Converter no GUI"
+APP_NAME = "Lean Markdown Converter CLI"
 APP_DESCRIPTION = "A no GUI batch converter for MarkItDown to convert various file formats to Markdown."
-VERSION = "01.01.20260220"
+VERSION = "1.0.5"
 AUTHOR_NAME = "Sascha D. Kasper - LeanProductivity"
 HELP_URL = "https://github.com/microsoft/markitdown"
-NOTE = "STILL NOT SUPPORTING MP3 AND M4A IN THE COMPILED APP VERSION DUE TO FFmpeg ISSUES."
 # ──────────────────────────────────────────────────────────────────────────
 
 import os
@@ -21,9 +20,9 @@ CONFIG_FILE = os.path.join(_SCRIPT_DIR, "..", "conversion_config.json")
 LOGS_DIR = os.path.join(_SCRIPT_DIR, "..", "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 SUPPORTED_EXTENSIONS = {
-    ".bmp", ".csv", ".doc", ".docx", ".epub", ".gif", ".htm", ".html",
-    ".ipynb", ".jpeg", ".jpg", ".json", ".m4a", ".mp3", ".msg", ".pdf", ".png",
-    ".ppt", ".pptx", ".tiff", ".wav", ".xls", ".xlsx", ".xml"
+    ".csv", ".doc", ".docx", ".epub", ".htm", ".html",
+    ".ipynb", ".json", ".m4a", ".mp3", ".msg", ".pdf",
+    ".ppt", ".pptx", ".wav", ".xls", ".xlsx", ".xml"
 }
 
 # Optional: FFmpeg for audio support via pydub
@@ -33,6 +32,7 @@ try:
     if not Path(ffmpeg_path).is_file():
         raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_path}")
     AudioSegment.converter = ffmpeg_path
+    AudioSegment.ffprobe = ffmpeg_path
 except ImportError:
     pass  # pydub not installed
 except Exception as e:
