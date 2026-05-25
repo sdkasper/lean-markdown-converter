@@ -1,7 +1,7 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "Lean Markdown Converter CLI"
 APP_DESCRIPTION = "A no GUI batch converter for MarkItDown to convert various file formats to Markdown."
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 AUTHOR_NAME = "Sascha D. Kasper - LeanProductivity"
 HELP_URL = "https://github.com/microsoft/markitdown"
 # ──────────────────────────────────────────────────────────────────────────
