@@ -48,13 +48,16 @@ EXT_GROUPS = {
 }
 
 # ─── FFMPEG / PYDUB SETUP ─────────────────────────────────────────────────
-try:
-    from pydub import AudioSegment
-    ffmpeg_path = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
-    AudioSegment.converter = ffmpeg_path
-    AudioSegment.ffprobe = ffmpeg_path
-except ImportError:
-    pass
+# Only set custom ffmpeg paths when running as frozen exe (no ffmpeg in PATH)
+# Setting these paths breaks M4A audio transcription when system ffmpeg is available
+if getattr(sys, "frozen", False):
+    try:
+        from pydub import AudioSegment
+        ffmpeg_path = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
+        AudioSegment.converter = ffmpeg_path
+        AudioSegment.ffprobe = ffmpeg_path
+    except ImportError:
+        pass
 
 # ─── GUI APP ──────────────────────────────────────────────────────────────
 class FileConverterApp:

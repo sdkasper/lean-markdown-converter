@@ -25,18 +25,21 @@ SUPPORTED_EXTENSIONS = {
     ".ppt", ".pptx", ".wav", ".xls", ".xlsx", ".xml"
 }
 
-# Optional: FFmpeg for audio support via pydub
-try:
-    from pydub import AudioSegment
-    ffmpeg_path = os.path.join(_SCRIPT_DIR, "..", "resources", "bin", "ffmpeg.exe")
-    if not Path(ffmpeg_path).is_file():
-        raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_path}")
-    AudioSegment.converter = ffmpeg_path
-    AudioSegment.ffprobe = ffmpeg_path
-except ImportError:
-    pass  # pydub not installed
-except Exception as e:
-    print(f"FFmpeg configuration warning: {e}")
+# Optional: FFmpeg for audio support via pydub (only when bundled)
+# Only set custom paths when running as frozen exe - system ffmpeg in PATH works better
+# Setting custom paths breaks M4A audio transcription in development environments
+if getattr(sys, "frozen", False):
+    try:
+        from pydub import AudioSegment
+        ffmpeg_path = os.path.join(_SCRIPT_DIR, "..", "resources", "bin", "ffmpeg.exe")
+        if not Path(ffmpeg_path).is_file():
+            raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_path}")
+        AudioSegment.converter = ffmpeg_path
+        AudioSegment.ffprobe = ffmpeg_path
+    except ImportError:
+        pass  # pydub not installed
+    except Exception as e:
+        print(f"FFmpeg configuration warning: {e}")
 
 # ─── LOAD OR PROMPT CONFIG ────────────────────────────────────────────────
 def load_config():
