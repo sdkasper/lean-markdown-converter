@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A batch file-to-Markdown converter using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Provides both a CLI (interactive terminal prompts) and a GUI (tkinter). Distributed as a Windows standalone `.exe` via PyInstaller + Inno Setup installer.
 
+Current version: **v1.0.6** (Lean Markdown Converter)
+
 ## Commands
 
 ```bash
@@ -19,9 +21,13 @@ python gui/gui_converter.py              # GUI — tkinter interface
 # Build (PowerShell)
 powershell build.ps1                     # Runs: pyinstaller LPMarkdownConverter.spec
                                          # Produces single-file .exe in dist/
+
+# Test
+pytest tests/                            # Run all tests (comprehensive suite in tests/)
+pytest tests/test_conversion_flow.py     # Run specific test file
 ```
 
-No test framework or linter is configured.
+Linter: None configured. Format with your preferred tool (black, ruff, etc.).
 
 ## Architecture
 
@@ -31,6 +37,12 @@ Two independent entry points share the same conversion approach (MarkItDown → 
 - **`terminal/cli_converter.py`** — Linear script with `input()` prompts, no classes.
 
 Both read/write **`conversion_config.json`** (persisted user settings: folders, extension toggles, force/dry-run/logging flags). The GUI stores extensions as `{".pdf": true, ...}` dict; the CLI stores them as a list — the GUI handles both formats on load.
+
+### Supported Formats
+
+`.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
+
+**Note:** Image formats (BMP, GIF, JPEG, JPG, PNG, TIFF) are NOT supported. MarkItDown cannot extract text from images without an LLM configured, so these were removed to avoid silent empty outputs.
 
 ### Key files
 
@@ -55,9 +67,14 @@ Both read/write **`conversion_config.json`** (persisted user settings: folders, 
 
 GUI writes extensions as `{".ext": bool}` dict. CLI writes as `[".ext", ...]` list. The GUI's `load_config()` handles both formats; keep this backward compatibility if modifying config handling.
 
+### Audio Support
+
+CLI and GUI both configure pydub's `AudioSegment.converter` and `AudioSegment.ffprobe` to point to the bundled FFmpeg (or system path in compiled .exe). M4A support requires both `converter` AND `ffprobe` to be set (ffprobe detects the container format).
+
 ## Git & Deployment
 
 - Git LFS tracks `*.exe` and `*.zip` (see `.gitattributes`)
-- Remote: `sdkasper/lp-bulk-markdown-converter`
-- Installer `.exe` lives in `setup/` (tracked via LFS)
-- `Input/` and `Output/` contain test/demo files and are committed; `logs/` is gitignored
+- Remote: `sdkasper/lean-markdown-converter`
+- Built artifacts live in `dist/` (exe) and `setup/` (installer), both tracked via LFS
+- `Input/` and `Output/` contain demo/test files (committed); `logs/` is gitignored
+- Releases published to GitHub with both standalone exe and installer
