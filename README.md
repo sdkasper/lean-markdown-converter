@@ -1,5 +1,5 @@
 
-# LeanProductivity MarkItDown Batch Converter
+# Lean Markdown Converter
 
 Batch convert various file formats to Markdown using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Provides both a **CLI** (interactive terminal) and a **GUI** (tkinter) for technical and non-technical users alike.
 
@@ -9,11 +9,11 @@ A Windows 11 standalone installer is available — no Python, Git, or additional
 
 **Download:** [https://kspr.me/bulkmd](https://kspr.me/bulkmd)
 
-Run `LPMarkdownConverterSetup.exe` and follow the prompts to install. Launch via **Start Menu > LeanProductivity Markdown Converter** or use the optional desktop shortcut.
+Run `LPMarkdownConverterSetup.exe` and follow the prompts to install. Launch via **Start Menu > Lean Markdown Converter** or use the optional desktop shortcut.
 
 ## 📦 Supported Formats
 
-`.bmp` `.csv` `.doc` `.docx` `.epub` `.gif` `.htm` `.html` `.ipynb` `.jpeg` `.jpg` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.png` `.ppt` `.pptx` `.tiff` `.wav` `.xls` `.xlsx` `.xml`
+`.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
 
 Audio formats (`.mp3`, `.m4a`, `.wav`) require FFmpeg — bundled in `resources/bin/ffmpeg.exe` for the standalone app.
 
