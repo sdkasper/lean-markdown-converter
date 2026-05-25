@@ -1,6 +1,6 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
-APP_NAME = "LeanProductivity MarkItDown Batch Converter with GUI"
-VERSION = "01.02.20260220"
+APP_NAME = "Lean Markdown Converter"
+VERSION = "1.0.5"
 AUTHOR_NAME = "Sascha D. Kasper – LeanProductivity"
 AUTHOR_URL = "https://sascha-kasper.com"
 HELP_URL = "https://github.com/microsoft/markitdown"
@@ -36,9 +36,9 @@ else:
     LOGS_DIR = os.path.join(_SCRIPT_DIR, "..", "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 SUPPORTED_EXTENSIONS = [
-    ".bmp", ".csv", ".doc", ".docx", ".epub", ".gif", ".htm", ".html",
-    ".ipynb", ".jpeg", ".jpg", ".json", ".m4a", ".mp3", ".msg", ".pdf", ".png",
-    ".ppt", ".pptx", ".tiff", ".wav", ".xls", ".xlsx", ".xml"
+    ".csv", ".doc", ".docx", ".epub", ".htm", ".html",
+    ".ipynb", ".json", ".m4a", ".mp3", ".msg", ".pdf",
+    ".ppt", ".pptx", ".wav", ".xls", ".xlsx", ".xml"
 ]
 
 # ─── FFMPEG / PYDUB SETUP ─────────────────────────────────────────────────
@@ -54,7 +54,7 @@ except ImportError:
 class FileConverterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title(APP_NAME)
+        self.root.title(f"{APP_NAME} v{VERSION}")
         self.config = self.load_config()
         self.cancelled = False
         self.converting = False
