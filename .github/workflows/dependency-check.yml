@@ -1,0 +1,61 @@
+name: Dependency Check
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # Every Monday 8am UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Check for dependency updates
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run dependency check
+        id: check
+        run: python scripts/dependency_check.py --output report.md
+
+      - name: Close previous dependency issues
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $issues = gh issue list --label "dependencies" --state open --json number -q '.[].number'
+          if ($issues) {
+            foreach ($num in $issues) {
+              Write-Output "Closing issue #$num"
+              gh issue close $num --comment "Superseded by new weekly report."
+            }
+          }
+
+      - name: Create issue
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $date = Get-Date -Format 'yyyy-MM-dd'
+          $body = Get-Content report.md -Raw
+          gh issue create `
+            --title "Dependency Report $date" `
+            --body $body `
+            --label "dependencies"
