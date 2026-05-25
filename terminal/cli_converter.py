@@ -200,6 +200,8 @@ if __name__ == "__main__":
     if logging_enabled == 'y':
         try:
             with open(log_path, "w", encoding="utf-8") as log_file:
+                header = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Lean Markdown Converter v{VERSION}\n"
+                log_file.write(header)
                 log_file.write("\n".join(log_lines))
         except Exception as e:
             print(f"Warning: Could not save log file: {e}")

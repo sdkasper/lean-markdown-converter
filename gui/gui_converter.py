@@ -398,6 +398,8 @@ class FileConverterApp:
         if logging_enabled:
             try:
                 with open(log_path, "w", encoding="utf-8") as f:
+                    header = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Lean Markdown Converter v{VERSION}\n"
+                    f.write(header)
                     f.write("\n".join(log_lines))
             except Exception:
                 log_path = None
