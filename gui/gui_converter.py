@@ -233,10 +233,15 @@ class FileConverterApp:
             err = ""
             try:
                 result = md.convert(src)
-                Path(dst).parent.mkdir(parents=True, exist_ok=True)
-                with open(dst, "w", encoding="utf-8") as f:
-                    f.write(result.text_content)
-                status = "overwritten" if existed else "converted"
+                content = result.text_content or ""
+                if not content.strip():
+                    status = "empty"
+                    log_lines.append(f"[{datetime.now()}] Skipped (empty output): {src}")
+                else:
+                    Path(dst).parent.mkdir(parents=True, exist_ok=True)
+                    with open(dst, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    status = "overwritten" if existed else "converted"
             except Exception as e:
                 status = "error"
                 err = str(e)
@@ -247,6 +252,9 @@ class FileConverterApp:
             elif status == "overwritten":
                 overwritten += 1
                 log_lines.append(f"[{datetime.now()}] Overwritten: {src}")
+            elif status == "empty":
+                skipped += 1
+                # log line already appended inside the empty-content guard
             else:
                 failed += 1
                 log_lines.append(f"[{datetime.now()}] Error: {src} -> {err}")

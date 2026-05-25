@@ -171,12 +171,18 @@ if __name__ == "__main__":
     for i, (src_path, dst_path) in enumerate(files_to_convert, 1):
         try:
             result = md.convert(str(src_path))
-            dst_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(dst_path, "w", encoding="utf-8") as f:
-                f.write(result.text_content)
-            print(f"[{i}/{total}] Converted: {src_path.relative_to(input_folder)}")
-            converted += 1
-            log_lines.append(f"[{datetime.now()}] Converted: {src_path}")
+            content = result.text_content or ""
+            if not content.strip():
+                print(f"[{i}/{total}] Skipped (empty output): {src_path.relative_to(input_folder)}")
+                skipped += 1
+                log_lines.append(f"[{datetime.now()}] Skipped (empty output): {src_path}")
+            else:
+                dst_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(dst_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                print(f"[{i}/{total}] Converted: {src_path.relative_to(input_folder)}")
+                converted += 1
+                log_lines.append(f"[{datetime.now()}] Converted: {src_path}")
         except Exception as e:
             print(f"[{i}/{total}] Error converting {src_path.name}: {e}")
             failed += 1
@@ -189,8 +195,11 @@ if __name__ == "__main__":
     print(f"Errors   : {failed}")
 
     if logging_enabled == 'y':
-        with open(log_path, "w", encoding="utf-8") as log_file:
-            log_file.write("\n".join(log_lines))
+        try:
+            with open(log_path, "w", encoding="utf-8") as log_file:
+                log_file.write("\n".join(log_lines))
+        except Exception as e:
+            print(f"Warning: Could not save log file: {e}")
         view = input("View log file? (y/n): ").strip().lower()
         if view == 'y':
             try:

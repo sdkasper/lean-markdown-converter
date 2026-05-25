@@ -1,7 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-block_cipher = None
-
 import sys
 from PyInstaller.utils.hooks import collect_data_files
 
@@ -11,7 +9,7 @@ magika_datas = collect_data_files('magika', include_py_files=False)
 # Analysis: include script, data files, binaries, and runtime hooks
 a = Analysis(
     ['gui/gui_converter.py'],
-    pathex=['D:/GitProjects/lp-bulk-markdown-converter'],
+    pathex=['.'],
     binaries=[
         ('resources/bin/ffmpeg.exe', 'resources/bin'),
     ],
@@ -25,14 +23,12 @@ a = Analysis(
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
 )
 
 # Create Python archive
 pyz = PYZ(
     a.pure,
     a.zipped_data,
-    cipher=block_cipher,
 )
 
 # Build the executable
