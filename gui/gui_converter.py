@@ -1,6 +1,6 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "Lean Markdown Converter"
-VERSION = "1.0.7.1"
+VERSION = "1.0.7.2"
 AUTHOR_NAME = "Sascha D. Kasper – LeanProductivity"
 AUTHOR_URL = "https://sascha-kasper.com"
 HELP_URL = "https://github.com/microsoft/markitdown"
@@ -48,16 +48,21 @@ EXT_GROUPS = {
 }
 
 # ─── FFMPEG / PYDUB SETUP ─────────────────────────────────────────────────
-# Only set custom ffmpeg paths when running as frozen exe (no ffmpeg in PATH)
-# Setting these paths breaks M4A audio transcription when system ffmpeg is available
-if getattr(sys, "frozen", False):
-    try:
-        from pydub import AudioSegment
+# Check if ffmpeg is in PATH before setting custom paths
+# M4A audio transcription fails with custom absolute paths when system ffmpeg is available
+try:
+    from pydub import AudioSegment
+    # Try to find ffmpeg in PATH using 'where' command
+    ffmpeg_in_path = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True).returncode == 0
+
+    # Only set custom paths if ffmpeg is NOT in PATH (e.g., bundled exe)
+    if not ffmpeg_in_path:
         ffmpeg_path = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
-        AudioSegment.converter = ffmpeg_path
-        AudioSegment.ffprobe = ffmpeg_path
-    except ImportError:
-        pass
+        if os.path.exists(ffmpeg_path):
+            AudioSegment.converter = ffmpeg_path
+            AudioSegment.ffprobe = ffmpeg_path
+except (ImportError, Exception):
+    pass
 
 # ─── GUI APP ──────────────────────────────────────────────────────────────
 class FileConverterApp:

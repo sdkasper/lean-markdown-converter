@@ -1,7 +1,7 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "Lean Markdown Converter CLI"
 APP_DESCRIPTION = "A no GUI batch converter for MarkItDown to convert various file formats to Markdown."
-VERSION = "1.0.7.1"
+VERSION = "1.0.7.2"
 AUTHOR_NAME = "Sascha D. Kasper - LeanProductivity"
 HELP_URL = "https://github.com/microsoft/markitdown"
 # ──────────────────────────────────────────────────────────────────────────
@@ -25,21 +25,25 @@ SUPPORTED_EXTENSIONS = {
     ".ppt", ".pptx", ".wav", ".xls", ".xlsx", ".xml"
 }
 
-# Optional: FFmpeg for audio support via pydub (only when bundled)
-# Only set custom paths when running as frozen exe - system ffmpeg in PATH works better
-# Setting custom paths breaks M4A audio transcription in development environments
-if getattr(sys, "frozen", False):
-    try:
-        from pydub import AudioSegment
+# Optional: FFmpeg for audio support via pydub
+# Only set custom ffmpeg paths if NOT in system PATH
+# M4A audio transcription fails with custom absolute paths when system ffmpeg is available
+try:
+    from pydub import AudioSegment
+    # Check if ffmpeg is in PATH
+    ffmpeg_in_path = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True).returncode == 0
+
+    # Only set custom paths if ffmpeg is NOT in PATH (e.g., bundled exe without system ffmpeg)
+    if not ffmpeg_in_path:
         ffmpeg_path = os.path.join(_SCRIPT_DIR, "..", "resources", "bin", "ffmpeg.exe")
         if not Path(ffmpeg_path).is_file():
             raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_path}")
         AudioSegment.converter = ffmpeg_path
         AudioSegment.ffprobe = ffmpeg_path
-    except ImportError:
-        pass  # pydub not installed
-    except Exception as e:
-        print(f"FFmpeg configuration warning: {e}")
+except ImportError:
+    pass  # pydub not installed
+except Exception as e:
+    print(f"FFmpeg configuration warning: {e}")
 
 # ─── LOAD OR PROMPT CONFIG ────────────────────────────────────────────────
 def load_config():
