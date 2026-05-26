@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A batch file-to-Markdown converter using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Provides both a CLI (interactive terminal prompts) and a GUI (tkinter). Distributed as a Windows standalone `.exe` via PyInstaller + Inno Setup installer.
 
-Current version: **v1.0.6** (Lean Markdown Converter)
+Current version: **v1.0.9** (Lean Markdown Converter)
 
 ## Commands
 

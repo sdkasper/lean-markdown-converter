@@ -42,7 +42,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "D:\GitProjects\lean-markdown-converter\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\GitProjects\lean-markdown-converter\resources\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "D:\GitProjects\lean-markdown-converter\resources\LeanProductivity.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "D:\GitProjects\lean-markdown-converter\setup\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
