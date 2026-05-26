@@ -1,6 +1,6 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "Lean Markdown Converter"
-VERSION = "1.0.7.2"
+VERSION = "1.0.8"
 AUTHOR_NAME = "Sascha D. Kasper – LeanProductivity"
 AUTHOR_URL = "https://sascha-kasper.com"
 HELP_URL = "https://github.com/microsoft/markitdown"
@@ -11,6 +11,7 @@ import sys
 import json
 import subprocess
 import threading
+import traceback
 from pathlib import Path
 from datetime import datetime
 import tkinter as tk
@@ -52,17 +53,65 @@ EXT_GROUPS = {
 # M4A audio transcription fails with custom absolute paths when system ffmpeg is available
 try:
     from pydub import AudioSegment
-    # Try to find ffmpeg in PATH using 'where' command
+    # Try to find ffmpeg AND ffprobe in PATH using 'where' command
     ffmpeg_in_path = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True).returncode == 0
+    ffprobe_in_path = subprocess.run(["where", "ffprobe"], capture_output=True, text=True).returncode == 0
 
-    # Only set custom paths if ffmpeg is NOT in PATH (e.g., bundled exe)
-    if not ffmpeg_in_path:
+    # Only set custom paths if BOTH binaries are NOT in PATH (e.g., bundled exe)
+    if not ffmpeg_in_path or not ffprobe_in_path:
         ffmpeg_path = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
-        if os.path.exists(ffmpeg_path):
+        ffprobe_path = resource_path(os.path.join("resources", "bin", "ffprobe.exe"))
+        if os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path):
             AudioSegment.converter = ffmpeg_path
-            AudioSegment.ffprobe = ffmpeg_path
+            AudioSegment.ffprobe = ffprobe_path
 except (ImportError, Exception):
     pass
+
+# ─── STARTUP DIAGNOSTIC ───────────────────────────────────────────────────
+def _write_startup_diagnostic():
+    """Write one-time startup summary to a persistent log for troubleshooting."""
+    try:
+        diag_path = Path(LOGS_DIR) / "startup_diagnostic.log"
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        ffmpeg_where = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True)
+        ffprobe_where = subprocess.run(["where", "ffprobe"], capture_output=True, text=True)
+        ffmpeg_path_found = ffmpeg_where.returncode == 0
+        ffprobe_path_found = ffprobe_where.returncode == 0
+        ffmpeg_path_val = ffmpeg_where.stdout.strip().splitlines()[0] if ffmpeg_path_found else "not in PATH"
+        ffprobe_path_val = ffprobe_where.stdout.strip().splitlines()[0] if ffprobe_path_found else "not in PATH"
+
+        bundled_ffmpeg = resource_path(os.path.join("resources", "bin", "ffmpeg.exe"))
+        bundled_ffprobe = resource_path(os.path.join("resources", "bin", "ffprobe.exe"))
+        b_ffmpeg_exists = os.path.exists(bundled_ffmpeg)
+        b_ffprobe_exists = os.path.exists(bundled_ffprobe)
+        b_ffmpeg_size = os.path.getsize(bundled_ffmpeg) if b_ffmpeg_exists else 0
+        b_ffprobe_size = os.path.getsize(bundled_ffprobe) if b_ffprobe_exists else 0
+
+        try:
+            from pydub import AudioSegment
+            active_ffmpeg = getattr(AudioSegment, "converter", "pydub default")
+            active_ffprobe = getattr(AudioSegment, "ffprobe", "pydub default")
+        except ImportError:
+            active_ffmpeg = active_ffprobe = "pydub not available"
+
+        lines = [
+            f"[{ts}] === Lean Markdown Converter v{VERSION} Startup Diagnostic ===",
+            f"[{ts}] ffmpeg in PATH: {ffmpeg_path_found} ({ffmpeg_path_val})",
+            f"[{ts}] ffprobe in PATH: {ffprobe_path_found} ({ffprobe_path_val})",
+            f"[{ts}] Active ffmpeg path: {active_ffmpeg}",
+            f"[{ts}] Active ffprobe path: {active_ffprobe}",
+            f"[{ts}] Bundled ffmpeg: exists={b_ffmpeg_exists}, size={b_ffmpeg_size} bytes ({bundled_ffmpeg})",
+            f"[{ts}] Bundled ffprobe: exists={b_ffprobe_exists}, size={b_ffprobe_size} bytes ({bundled_ffprobe})",
+            f"[{ts}] Frozen (exe): {getattr(sys, 'frozen', False)}",
+            "",
+        ]
+        with open(diag_path, "a", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception:
+        pass  # Never crash startup due to diagnostics
+
+_write_startup_diagnostic()
 
 # ─── GUI APP ──────────────────────────────────────────────────────────────
 class FileConverterApp:
@@ -360,6 +409,8 @@ class FileConverterApp:
         total = len(tasks)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_path = Path(LOGS_DIR) / f"conversion_log_{timestamp}.log"
+        _AUDIO_EXTS = {".mp3", ".m4a", ".wav"}
+        audio_attempted = audio_converted = audio_failed = 0
 
         # Initialize converter once per thread
         md = MarkItDown()
@@ -368,35 +419,100 @@ class FileConverterApp:
             if self.cancelled:
                 break
             err = ""
-            try:
-                result = md.convert(src)
-                content = result.text_content or ""
-                if not content.strip():
-                    status = "empty"
-                    log_lines.append(f"[{datetime.now()}] Skipped (empty output): {src}")
-                else:
-                    Path(dst).parent.mkdir(parents=True, exist_ok=True)
-                    with open(dst, "w", encoding="utf-8") as f:
-                        f.write(content)
-                    status = "overwritten" if existed else "converted"
-            except Exception as e:
+            src_ext = Path(src).suffix.lower()
+            is_audio = src_ext in _AUDIO_EXTS
+            if is_audio:
+                audio_attempted += 1
+
+            # ── Pre-conversion checks ─────────────────────────────────────
+            src_path = Path(src)
+            if not src_path.exists():
                 status = "error"
-                err = str(e)
+                err = "Source file not found"
+                log_lines.append(f"[{datetime.now()}] PreCheck FAIL (missing): {src}")
+            else:
+                try:
+                    src_path.open("rb").close()
+                except OSError as open_err:
+                    status = "error"
+                    err = f"Cannot read source: {open_err}"
+                    log_lines.append(f"[{datetime.now()}] PreCheck FAIL (unreadable): {src} -> {err}")
+                else:
+                    dst_parent = Path(dst).parent
+                    try:
+                        dst_parent.mkdir(parents=True, exist_ok=True)
+                        _tmp = dst_parent / f".writable_check_{timestamp}.tmp"
+                        _tmp.touch()
+                        _tmp.unlink()
+                    except OSError as dir_err:
+                        status = "error"
+                        err = f"Output dir not writable: {dir_err}"
+                        log_lines.append(
+                            f"[{datetime.now()}] PreCheck FAIL (output dir): {os.path.basename(src)} -> {err}"
+                        )
+                    else:
+                        # ── Conversion ────────────────────────────────────
+                        status = None
+                        try:
+                            result = md.convert(src)
+                            content = result.text_content or ""
+                            if not content.strip():
+                                status = "empty"
+                                log_lines.append(f"[{datetime.now()}] Skipped (empty output): {src}")
+                            else:
+                                with open(dst, "w", encoding="utf-8") as f:
+                                    f.write(content)
+                                status = "overwritten" if existed else "converted"
+                        except Exception as e:
+                            status = "error"
+                            tb = traceback.format_exc()
+                            exc_type = type(e).__name__
+                            err = str(e)
+                            if is_audio:
+                                log_lines.append(
+                                    f"[{datetime.now()}] Audio Conversion Error: {src} -> "
+                                    f"{exc_type}: {err[:120]}"
+                                )
+                                # Append truncated traceback on next line
+                                tb_short = tb.replace("\n", " | ")[:180]
+                                log_lines.append(f"[{datetime.now()}] Traceback: {tb_short}")
+                            else:
+                                log_lines.append(f"[{datetime.now()}] Error: {src} -> {exc_type}: {err[:150]}")
 
             if status == "converted":
                 converted += 1
+                if is_audio:
+                    audio_converted += 1
                 log_lines.append(f"[{datetime.now()}] Converted: {src}")
             elif status == "overwritten":
                 overwritten += 1
+                if is_audio:
+                    audio_converted += 1
                 log_lines.append(f"[{datetime.now()}] Overwritten: {src}")
             elif status == "empty":
                 skipped += 1
                 # log line already appended inside the empty-content guard
-            else:
+            elif status == "error":
                 failed += 1
-                log_lines.append(f"[{datetime.now()}] Error: {src} -> {err}")
+                if is_audio:
+                    audio_failed += 1
+                # error log already appended above
 
             self.root.after(0, self._update_progress, i + 1, total, os.path.basename(src))
+
+        # ── End-of-run summary ────────────────────────────────────────────
+        total_attempted = converted + overwritten + failed
+        success_rate = (
+            f"{(converted + overwritten) * 100 // total_attempted}%"
+            if total_attempted else "n/a"
+        )
+        summary = (
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Summary: "
+            f"{audio_attempted} audio files ({audio_converted} converted, {audio_failed} failed), "
+            f"{total_attempted} total files ({converted + overwritten} converted, {failed} failed), "
+            f"success rate {success_rate}"
+        )
+        log_lines.append(summary)
 
         logging_enabled = self.enable_logging.get()
 

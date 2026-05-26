@@ -12,6 +12,7 @@ a = Analysis(
     pathex=['.'],
     binaries=[
         ('resources/bin/ffmpeg.exe', 'resources/bin'),
+        ('resources/bin/ffprobe.exe', 'resources/bin'),
     ],
     datas=[
         ('resources', 'resources'),
@@ -42,7 +43,7 @@ exe = EXE(
     debug=False,
     strip=False,
     upx=True,
-    upx_exclude=['ffmpeg.exe'],
+    upx_exclude=['ffmpeg.exe', 'ffprobe.exe'],
     console=False,
     icon='resources/LeanProductivity.ico',
 )

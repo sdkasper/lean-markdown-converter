@@ -1,7 +1,7 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "Lean Markdown Converter CLI"
 APP_DESCRIPTION = "A no GUI batch converter for MarkItDown to convert various file formats to Markdown."
-VERSION = "1.0.7.2"
+VERSION = "1.0.8"
 AUTHOR_NAME = "Sascha D. Kasper - LeanProductivity"
 HELP_URL = "https://github.com/microsoft/markitdown"
 # ──────────────────────────────────────────────────────────────────────────
@@ -30,16 +30,18 @@ SUPPORTED_EXTENSIONS = {
 # M4A audio transcription fails with custom absolute paths when system ffmpeg is available
 try:
     from pydub import AudioSegment
-    # Check if ffmpeg is in PATH
+    # Check if ffmpeg AND ffprobe are in PATH
     ffmpeg_in_path = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True).returncode == 0
+    ffprobe_in_path = subprocess.run(["where", "ffprobe"], capture_output=True, text=True).returncode == 0
 
-    # Only set custom paths if ffmpeg is NOT in PATH (e.g., bundled exe without system ffmpeg)
-    if not ffmpeg_in_path:
+    # Only set custom paths if BOTH binaries are NOT in PATH (e.g., bundled exe without system ffmpeg)
+    if not ffmpeg_in_path or not ffprobe_in_path:
         ffmpeg_path = os.path.join(_SCRIPT_DIR, "..", "resources", "bin", "ffmpeg.exe")
-        if not Path(ffmpeg_path).is_file():
-            raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_path}")
+        ffprobe_path = os.path.join(_SCRIPT_DIR, "..", "resources", "bin", "ffprobe.exe")
+        if not Path(ffmpeg_path).is_file() or not Path(ffprobe_path).is_file():
+            raise FileNotFoundError(f"FFmpeg/ffprobe not found at {ffmpeg_path} / {ffprobe_path}")
         AudioSegment.converter = ffmpeg_path
-        AudioSegment.ffprobe = ffmpeg_path
+        AudioSegment.ffprobe = ffprobe_path
 except ImportError:
     pass  # pydub not installed
 except Exception as e:
