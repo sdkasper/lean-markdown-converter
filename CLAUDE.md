@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A batch file-to-Markdown converter using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Provides both a CLI (interactive terminal prompts) and a GUI (tkinter). Distributed as a Windows standalone `.exe` via PyInstaller + Inno Setup installer.
 
-Current version: **v1.0.9** (Lean Markdown Converter)
+Current version: **v1.1.0** (Lean Markdown Converter)
 
 ## Commands
 
@@ -46,10 +46,22 @@ Both read/write **`conversion_config.json`** (persisted user settings: folders, 
 
 ### Image Support
 
-Re-enabled for `.jpg`/`.jpeg`/`.png` (previously removed entirely). MarkItDown's `ImageConverter` supports two independent layers, both triggered automatically by `MarkItDown().convert(...)` — no code changes are needed beyond including the extension in the allowlist:
+Re-enabled for `.jpg`/`.jpeg`/`.png` (previously removed entirely). MarkItDown's `ImageConverter` supports two independent layers — EXIF metadata (no LLM) and LLM-based OCR/description — selected per-run via the `image_conversion` config block (see "Config format" below) rather than always defaulting to the bare EXIF path.
 
-- **Basic (EXIF metadata) — no LLM required, but needs the `exiftool` binary.** MarkItDown auto-detects `exiftool` via the `EXIFTOOL_PATH` env var or well-known system install locations (e.g. `C:\Program Files`, `/usr/local/bin`) at `MarkItDown()` construction time; it is **not** currently bundled with this app (unlike `ffmpeg`, which is bundled for audio). If `exiftool` isn't found, image conversion still succeeds but returns empty text content — the existing "skip empty output" logic in both CLI and GUI will then treat the file as skipped rather than converted. Install exiftool and ensure it's discoverable (env var or standard path) to get metadata like `ImageSize`, `DateTimeOriginal`, `GPSPosition`, etc.
-- **Advanced (LLM OCR/description) — optional, requires wiring.** Passing `llm_client` and `llm_model` (and optionally `llm_prompt`) to the `MarkItDown(...)` constructor makes the `ImageConverter` call the client's `chat.completions.create(...)` (OpenAI-compatible) to generate a `# Description:` section. **Neither `gui/gui_converter.py` nor `terminal/cli_converter.py` currently passes these kwargs** — both instantiate `MarkItDown()` with no arguments, so today only the EXIF-metadata path is active. Adding a settings field for an API key/model and passing it through to the `MarkItDown()` constructor is a separate follow-up if LLM-based descriptions are wanted.
+**Master toggle + mode choice.** `image_conversion.enabled` is the master switch; when off, `.jpg`/`.jpeg`/`.png` files still show as selectable extensions but conversion falls back to `MarkItDown()` with no LLM wiring (EXIF-only, same as pre-v1.1.0 behavior). When `enabled` is true, `image_conversion.mode` picks the layer: `"exif"` (default, no LLM) or `"ocr"` (LLM vision call via an OpenAI-compatible client). In the GUI, the master toggle greys out (but does not uncheck) the `.jpg`/`.jpeg`/`.png` extension checkboxes and the "Images" group-checkbox when off, so re-enabling restores the user's prior selection.
+
+- **EXIF mode — no LLM required, but needs the `exiftool` binary.** MarkItDown auto-detects `exiftool` via the `EXIFTOOL_PATH` env var or well-known system install locations at `MarkItDown()` construction time. If `exiftool` isn't found, image conversion still succeeds but returns empty text content — the existing "skip empty output" logic in both CLI and GUI treats the file as skipped rather than converted, and both surfaces show a warning when EXIF mode is selected and exiftool can't be located (checked via `shutil.which("exiftool")`, then a bundled-copy fallback).
+- **OCR mode — LLM vision call, provider-selectable.** `image_conversion.provider` picks one of three presets, each supplying a default `base_url`/`model` (user-editable) that get passed through an OpenAI-compatible client into `MarkItDown(llm_client=..., llm_model=...)`:
+
+  | provider | base_url | default model | API key required |
+  |---|---|---|---|
+  | gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.0-flash` | yes |
+  | ollama | `http://localhost:11434/v1` | `llava` | no (local server; a placeholder string is sent since the OpenAI SDK requires a non-empty `api_key`) |
+  | custom | blank (falls through to official `api.openai.com` if left blank) | blank (user-supplied, e.g. `gpt-4o`) | yes, typically |
+
+- **exiftool packaging.** Unlike `ffmpeg` (bundled into the frozen exe for audio), `exiftool` is **not** embedded in the single-file PyInstaller build — it ships as an **optional Windows installer component** (Inno Setup task, checked by default) so users can decline it. The dev-script path (`python gui/gui_converter.py`) relies entirely on PATH/`EXIFTOOL_PATH` discovery with no bundled fallback.
+- **No new binary for OCR mode.** The `openai` package (added to `requirements.txt`) is pure-Python, so OCR mode requires no additional bundled binary — only the network-facing HTTP client.
+- **API key storage caveat.** `image_conversion.api_key` is stored **in plaintext** in `conversion_config.json` (masked in the GUI display field, but not encrypted at rest). This matches the app's existing security posture — there is no encryption anywhere in this codebase, and it's a single-user desktop tool — but it means the config file must never be committed or shared once populated with a real key (see `.gitignore` note below). Never log the API key value in any log line.
 
 ### Key files
 
@@ -60,6 +72,7 @@ Re-enabled for `.jpg`/`.jpeg`/`.png` (previously removed entirely). MarkItDown's
 | `build.ps1` | One-liner that invokes `pyinstaller LPMarkdownConverter.spec` |
 | `setup/LPMarkdownConverterSetup.iss` | Inno Setup script for Windows installer |
 | `resources/bin/ffmpeg.exe` | Bundled FFmpeg for audio conversion (mp3/m4a/wav via pydub) |
+| `resources/bin/exiftool.exe` | Optional Windows installer component, not embedded in the frozen single-file exe |
 | `resources/LeanProductivity.ico` | App icon |
 
 ### Conversion flow
@@ -73,6 +86,21 @@ Re-enabled for `.jpg`/`.jpeg`/`.png` (previously removed entirely). MarkItDown's
 ### Config format (`conversion_config.json`)
 
 GUI writes extensions as `{".ext": bool}` dict. CLI writes as `[".ext", ...]` list. The GUI's `load_config()` handles both formats; keep this backward compatibility if modifying config handling.
+
+Since v1.1.0, both files also read/write a top-level `image_conversion` object:
+
+```json
+"image_conversion": {
+    "enabled": false,
+    "mode": "exif",
+    "provider": "gemini",
+    "api_key": "",
+    "model": "gemini-2.0-flash",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
+}
+```
+
+This key is **optional and defaults to disabled** — old `conversion_config.json` files written before v1.1.0 have no `image_conversion` key at all, and both `load_config()` functions treat its absence as "feature off, EXIF-only fallback" via chained `.get("image_conversion", {}).get(field, default)` lookups. No migration code is needed.
 
 ### Audio Support
 
