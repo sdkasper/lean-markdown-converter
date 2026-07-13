@@ -9,6 +9,7 @@ HELP_URL = "https://github.com/microsoft/markitdown"
 import os
 import sys
 import json
+import shutil
 import subprocess
 import threading
 import traceback
@@ -70,6 +71,27 @@ try:
             AudioSegment.ffprobe = ffprobe_path
 except (ImportError, Exception):
     pass
+
+# ─── EXIFTOOL DETECTION ────────────────────────────────────────────────────
+def _is_exiftool_available():
+    """Check if exiftool is on PATH or available as a bundled copy"""
+    if shutil.which("exiftool"):
+        return True
+    # Check for bundled copy (only relevant in frozen exe)
+    bundled_path = None
+    if getattr(sys, 'frozen', False):
+        # Running as compiled exe
+        exe_dir = os.path.dirname(sys.executable)
+        bundled_path = os.path.join(exe_dir, "resources", "bin", "exiftool.exe")
+    else:
+        # Running as script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        bundled_path = os.path.join(script_dir, "..", "resources", "bin", "exiftool.exe")
+
+    if bundled_path and os.path.exists(bundled_path):
+        os.environ["EXIFTOOL_PATH"] = bundled_path
+        return True
+    return False
 
 # ─── STARTUP DIAGNOSTIC ───────────────────────────────────────────────────
 def _write_startup_diagnostic():
@@ -208,6 +230,9 @@ class FileConverterApp:
         self.image_model = tk.StringVar(value=img_cfg.get("model", "gemini-2.0-flash"))
         self.image_base_url = tk.StringVar(value=img_cfg.get(
             "base_url", "https://generativelanguage.googleapis.com/v1beta/openai/"))
+        # Cache exiftool discoverability once at UI build time; drives the
+        # warning label's initial/refreshed visibility in _on_mode_change().
+        self.exiftool_available = _is_exiftool_available()
 
         img_frame = ttk.LabelFrame(self.root, text="Image Conversion")
         img_frame.grid(row=5, column=0, columnspan=3, sticky="ew", padx=5, pady=(10, 0))
@@ -352,18 +377,14 @@ class FileConverterApp:
         self._schedule_scan()
 
     def _exiftool_available(self):
-        """Best-effort exiftool discoverability check for the warning label.
+        """Return the cached exiftool discoverability result for the warning label.
 
-        NOTE: this is a minimal placeholder for section 2 (UI wiring only).
-        The full discoverability logic (PATH + bundled resources/bin/exiftool.exe
-        + EXIFTOOL_PATH env var) is implemented in section 4 alongside
-        _build_markitdown().
+        Backed by module-level _is_exiftool_available(), which checks PATH
+        first, then a bundled resources/bin/exiftool.exe copy (setting
+        EXIFTOOL_PATH if found there). Computed once in build_ui() and
+        cached on self.exiftool_available.
         """
-        try:
-            import shutil
-            return shutil.which("exiftool") is not None
-        except Exception:
-            return False
+        return self.exiftool_available
 
     def _on_image_toggle(self):
         """Master toggle: grey out (but do not uncheck) the .jpg/.jpeg/.png
@@ -512,16 +533,33 @@ class FileConverterApp:
         self.root.destroy()
 
     def _build_markitdown(self):
-        """Construct the MarkItDown converter instance for this run.
+        """Build MarkItDown instance with optional LLM support based on config.
 
-        STUB (section 2 scope): always returns a plain MarkItDown() so
-        worker_thread() keeps working while the GUI controls are wired up.
-        The real EXIF/OCR-aware factory (openai client construction from
-        image_conversion_enabled/mode/provider/api_key/model/base_url, plus
-        exiftool discoverability + EXIFTOOL_PATH env wiring) is implemented
-        in section 4.
+        No network call happens at construction time — the OpenAI client is
+        lazy, and MarkItDown's own image handling only calls out to the LLM
+        when an image file is actually converted. Never logs the API key.
         """
-        return MarkItDown()
+        enabled = self.image_conversion_enabled.get()
+        mode = self.image_mode.get()
+        provider = self.image_provider.get()
+        api_key = self.image_api_key.get()
+        model = self.image_model.get()
+        base_url = self.image_base_url.get()
+
+        if not enabled or mode == "exif":
+            return MarkItDown()
+
+        try:
+            import openai
+            client = openai.OpenAI(
+                api_key=api_key or "ollama",
+                base_url=base_url or None,
+            )
+            return MarkItDown(llm_client=client, llm_model=model)
+        except Exception as e:
+            # Construction-time error: fail fast with clear message
+            messagebox.showerror("Image Conversion Error", f"Failed to initialize LLM: {str(e)}")
+            raise
 
     @staticmethod
     def _is_safe_path(base_dir: Path, target: Path) -> bool:

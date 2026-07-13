@@ -9,6 +9,7 @@ HELP_URL = "https://github.com/microsoft/markitdown"
 import os
 import sys
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -27,6 +28,49 @@ SUPPORTED_EXTENSIONS = {
 # Note: .bmp, .gif, .tiff are NOT included — MarkItDown's ImageConverter only
 # accepts .jpg/.jpeg/.png (verified against markitdown 0.1.5 and 0.1.6). Other
 # image extensions raise UnsupportedFormatException regardless of LLM config.
+
+# ─── EXIFTOOL DETECTION ────────────────────────────────────────────────────
+def _is_exiftool_available():
+    """Check if exiftool is on PATH or available as a bundled copy."""
+    if shutil.which("exiftool"):
+        return True
+    # Check for bundled copy (only relevant in frozen exe)
+    bundled_path = None
+    if getattr(sys, 'frozen', False):
+        # Running as compiled exe
+        exe_dir = os.path.dirname(sys.executable)
+        bundled_path = os.path.join(exe_dir, "resources", "bin", "exiftool.exe")
+    else:
+        # Running as script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        bundled_path = os.path.join(script_dir, "..", "resources", "bin", "exiftool.exe")
+
+    if bundled_path and os.path.exists(bundled_path):
+        os.environ["EXIFTOOL_PATH"] = bundled_path
+        return True
+    return False
+
+# ─── MARKITDOWN FACTORY ────────────────────────────────────────────────────
+def build_markitdown(enabled, mode, provider, api_key, model, base_url):
+    """Build a MarkItDown instance with optional LLM support based on config.
+
+    No network call happens at construction time — the OpenAI client is
+    lazy, and MarkItDown's own image handling only calls out to the LLM
+    when an image file is actually converted. Never logs the API key.
+    """
+    if not enabled or mode == "exif":
+        return MarkItDown()
+
+    try:
+        import openai
+        client = openai.OpenAI(
+            api_key=api_key or "ollama",
+            base_url=base_url or None,
+        )
+        return MarkItDown(llm_client=client, llm_model=model)
+    except Exception as e:
+        print(f"Error: Failed to initialize LLM: {str(e)}")
+        raise
 
 # Optional: FFmpeg for audio support via pydub
 # Only set custom ffmpeg paths if NOT in system PATH
@@ -175,8 +219,9 @@ if __name__ == "__main__":
                 if image_provider != "ollama":
                     image_api_key = input("API key (leave blank to keep existing): ").strip() or image_api_key
             else:  # EXIF mode
-                # Check exiftool discoverability and warn (section 4 will add this logic)
-                pass
+                if not _is_exiftool_available():
+                    print("Warning: exiftool not found on PATH or as bundled component — image files will convert to empty output.")
+                    print("Reinstall with the exiftool component, or install it manually and add it to PATH.")
 
     force_convert = input(f"Force convert all files? (y/n) [{'y' if cfg.get('force', False) else 'n'}]: ").strip().lower() or ('y' if cfg.get("force", False) else 'n')
     dry_run = input(f"Dry run only? (y/n) [{'y' if cfg.get('dry_run', False) else 'n'}]: ").strip().lower() or ('y' if cfg.get("dry_run", False) else 'n')
@@ -201,7 +246,7 @@ if __name__ == "__main__":
     })
 
     # ─── INITIALIZATION ───────────────────────────────────────────────────────
-    md = MarkItDown()
+    md = build_markitdown(image_conversion_enabled, image_mode, image_provider, image_api_key, image_model, image_base_url)
     files_to_convert = []
     skipped = 0
     log_lines = []
