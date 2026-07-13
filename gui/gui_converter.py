@@ -1,6 +1,6 @@
 # ─── APPLICATION METADATA ──────────────────────────────────────────────────
 APP_NAME = "Lean Markdown Converter"
-VERSION = "1.0.9"
+VERSION = "1.1.0"
 AUTHOR_NAME = "Sascha D. Kasper – LeanProductivity"
 AUTHOR_URL = "https://sascha-kasper.com"
 HELP_URL = "https://github.com/microsoft/markitdown"
@@ -165,6 +165,8 @@ class FileConverterApp:
         self.select_all_var = tk.BooleanVar(value=False)
         self.ext_vars = {}
         self.group_all_vars = {}
+        self.ext_widgets = {}  # ext -> Checkbutton widget (for grey-out on image toggle)
+        self.group_all_widgets = {}  # group name -> Checkbutton widget
         ttk.Label(self.root, text="File Types:").grid(row=4, column=0, sticky="ne", padx=5, pady=(10, 0))
         ext_frame = ttk.Frame(self.root)
         ext_frame.grid(row=4, column=1, columnspan=2, sticky="w", pady=(10, 0))
@@ -178,9 +180,10 @@ class FileConverterApp:
         for group_name, exts in EXT_GROUPS.items():
             grp_var = tk.BooleanVar(value=False)
             self.group_all_vars[group_name] = grp_var
-            ttk.Checkbutton(ext_frame, text=group_name, variable=grp_var,
-                            command=lambda g=group_name: self._toggle_group(g)).grid(
-                row=row_offset, column=0, sticky="w", padx=(0, 8))
+            grp_chk = ttk.Checkbutton(ext_frame, text=group_name, variable=grp_var,
+                            command=lambda g=group_name: self._toggle_group(g))
+            grp_chk.grid(row=row_offset, column=0, sticky="w", padx=(0, 8))
+            self.group_all_widgets[group_name] = grp_chk
             default_exts = self.config.get("extensions", {})
             col = 1
             for ext in exts:
@@ -190,17 +193,85 @@ class FileConverterApp:
                 else:
                     var.set(default_exts.get(ext, False))
                 self.ext_vars[ext] = var
-                ttk.Checkbutton(ext_frame, text=ext, variable=var).grid(
-                    row=row_offset, column=col, sticky="w", padx=2)
+                ext_chk = ttk.Checkbutton(ext_frame, text=ext, variable=var)
+                ext_chk.grid(row=row_offset, column=col, sticky="w", padx=2)
+                self.ext_widgets[ext] = ext_chk
                 col += 1
             row_offset += 1
+
+        # ── Image Conversion ─────────────────────────────────────────────
+        img_cfg = self.config.get("image_conversion", {})
+        self.image_conversion_enabled = tk.BooleanVar(value=img_cfg.get("enabled", False))
+        self.image_mode = tk.StringVar(value=img_cfg.get("mode", "exif"))
+        self.image_provider = tk.StringVar(value=img_cfg.get("provider", "gemini"))
+        self.image_api_key = tk.StringVar(value=img_cfg.get("api_key", ""))
+        self.image_model = tk.StringVar(value=img_cfg.get("model", "gemini-2.0-flash"))
+        self.image_base_url = tk.StringVar(value=img_cfg.get(
+            "base_url", "https://generativelanguage.googleapis.com/v1beta/openai/"))
+
+        img_frame = ttk.LabelFrame(self.root, text="Image Conversion")
+        img_frame.grid(row=5, column=0, columnspan=3, sticky="ew", padx=5, pady=(10, 0))
+        img_frame.columnconfigure(1, weight=1)
+
+        # Row 0: master toggle
+        self.image_enable_chk = ttk.Checkbutton(
+            img_frame, text="Enable image conversion (.jpg/.jpeg/.png)",
+            variable=self.image_conversion_enabled, command=self._on_image_toggle)
+        self.image_enable_chk.grid(row=0, column=0, columnspan=3, sticky="w", padx=5, pady=(4, 2))
+
+        # Row 1: EXIF / OCR mode radios
+        mode_frame = ttk.Frame(img_frame)
+        mode_frame.grid(row=1, column=0, columnspan=3, sticky="w", padx=5)
+        self.image_mode_exif_radio = ttk.Radiobutton(
+            mode_frame, text="EXIF metadata only", variable=self.image_mode,
+            value="exif", command=self._on_mode_change)
+        self.image_mode_exif_radio.pack(side="left", padx=(0, 10))
+        self.image_mode_ocr_radio = ttk.Radiobutton(
+            mode_frame, text="Full OCR / description (needs an LLM)", variable=self.image_mode,
+            value="ocr", command=self._on_mode_change)
+        self.image_mode_ocr_radio.pack(side="left")
+
+        # Row 2: OCR provider
+        ttk.Label(img_frame, text="Provider:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
+        self.image_provider_combo = ttk.Combobox(
+            img_frame, textvariable=self.image_provider, values=("gemini", "ollama", "custom"),
+            state="readonly", width=15)
+        self.image_provider_combo.grid(row=2, column=1, sticky="w", padx=5, pady=2)
+        self.image_provider_combo.bind("<<ComboboxSelected>>", self._on_provider_change)
+
+        # Row 3: API key
+        ttk.Label(img_frame, text="API Key:").grid(row=3, column=0, sticky="e", padx=5, pady=2)
+        self.image_api_key_entry = ttk.Entry(img_frame, textvariable=self.image_api_key, show="*", width=40)
+        self.image_api_key_entry.grid(row=3, column=1, columnspan=2, sticky="ew", padx=5, pady=2)
+
+        # Row 4: model name
+        ttk.Label(img_frame, text="Model:").grid(row=4, column=0, sticky="e", padx=5, pady=2)
+        self.image_model_entry = ttk.Entry(img_frame, textvariable=self.image_model, width=40)
+        self.image_model_entry.grid(row=4, column=1, columnspan=2, sticky="ew", padx=5, pady=2)
+
+        # Row 5: base URL
+        ttk.Label(img_frame, text="Base URL:").grid(row=5, column=0, sticky="e", padx=5, pady=2)
+        self.image_base_url_entry = ttk.Entry(img_frame, textvariable=self.image_base_url, width=40)
+        self.image_base_url_entry.grid(row=5, column=1, columnspan=2, sticky="ew", padx=5, pady=2)
+
+        # Row 6: exiftool warning (visibility driven by _on_mode_change)
+        self.image_exiftool_warning = ttk.Label(
+            img_frame,
+            text=("exiftool not found — image files will convert to empty output. "
+                  "Reinstall with the exiftool component, or install it manually and add it to PATH."),
+            foreground="#b8860b", wraplength=480, justify="left")
+        self.image_exiftool_warning.grid(row=6, column=0, columnspan=3, sticky="w", padx=5, pady=(2, 4))
+        self.image_exiftool_warning.grid_remove()
+
+        # Apply initial enabled/disabled state based on loaded config
+        self._on_image_toggle()
 
         # ── Options ──────────────────────────────────────────────────────
         self.force_convert = tk.BooleanVar(value=self.config.get("force", False))
         self.enable_logging = tk.BooleanVar(value=self.config.get("logging", True))
         self.dry_run = tk.BooleanVar(value=self.config.get("dry_run", False))
         opt_frame = ttk.Frame(self.root)
-        opt_frame.grid(row=5, column=1, sticky="w", pady=(10, 0))
+        opt_frame.grid(row=6, column=1, sticky="w", pady=(10, 0))
         ttk.Checkbutton(opt_frame, text="Force convert all files", variable=self.force_convert).pack(anchor="w")
         ttk.Checkbutton(opt_frame, text="Enable logging to file", variable=self.enable_logging).pack(anchor="w")
         ttk.Checkbutton(opt_frame, text="Dry run only", variable=self.dry_run).pack(anchor="w")
@@ -208,7 +279,7 @@ class FileConverterApp:
         # ── Progress ─────────────────────────────────────────────────────
         self.progress_var = tk.DoubleVar(value=0)
         self.progress_frame = ttk.Frame(self.root)
-        self.progress_frame.grid(row=6, column=0, columnspan=3, pady=(10, 0), padx=10, sticky="ew")
+        self.progress_frame.grid(row=7, column=0, columnspan=3, pady=(10, 0), padx=10, sticky="ew")
         self.progress_bar = ttk.Progressbar(self.progress_frame, maximum=100,
                                             variable=self.progress_var, length=500)
         self.progress_bar.pack(side="left", fill="x", expand=True)
@@ -218,14 +289,14 @@ class FileConverterApp:
 
         # ── Status ───────────────────────────────────────────────────────
         self.status_label = ttk.Label(self.root, text="", foreground="gray")
-        self.status_label.grid(row=7, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 0))
+        self.status_label.grid(row=8, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 0))
         self.view_log_btn = ttk.Button(self.root, text="View Log", command=self._open_log)
-        self.view_log_btn.grid(row=7, column=2, sticky="e", padx=(4, 0), pady=(4, 0))
+        self.view_log_btn.grid(row=8, column=2, sticky="e", padx=(4, 0), pady=(4, 0))
         self.view_log_btn.grid_remove()
 
         # ── Buttons ──────────────────────────────────────────────────────
         btn_frame = ttk.Frame(self.root)
-        btn_frame.grid(row=8, column=1, pady=15)
+        btn_frame.grid(row=9, column=1, pady=15)
         self.start_btn = ttk.Button(btn_frame, text="Start Conversion", command=self.on_start)
         self.start_btn.pack(side="left", padx=5)
         self.cancel_btn = ttk.Button(btn_frame, text="Cancel", command=self.cancel)
@@ -280,6 +351,89 @@ class FileConverterApp:
             self.ext_vars[ext].set(val)
         self._schedule_scan()
 
+    def _exiftool_available(self):
+        """Best-effort exiftool discoverability check for the warning label.
+
+        NOTE: this is a minimal placeholder for section 2 (UI wiring only).
+        The full discoverability logic (PATH + bundled resources/bin/exiftool.exe
+        + EXIFTOOL_PATH env var) is implemented in section 4 alongside
+        _build_markitdown().
+        """
+        try:
+            import shutil
+            return shutil.which("exiftool") is not None
+        except Exception:
+            return False
+
+    def _on_image_toggle(self):
+        """Master toggle: grey out (but do not uncheck) the .jpg/.jpeg/.png
+        checkboxes and the 'Images' group checkbox, and enable/disable the
+        rest of the Image Conversion controls, based on image_conversion_enabled.
+        """
+        enabled = self.image_conversion_enabled.get()
+        ext_state = "normal" if enabled else "disabled"
+
+        for ext in (".jpg", ".jpeg", ".png"):
+            widget = self.ext_widgets.get(ext)
+            if widget is not None:
+                widget.config(state=ext_state)
+        images_group_widget = self.group_all_widgets.get("Images")
+        if images_group_widget is not None:
+            images_group_widget.config(state=ext_state)
+
+        self.image_mode_exif_radio.config(state=ext_state)
+        self.image_mode_ocr_radio.config(state=ext_state)
+
+        self._on_mode_change()
+
+    def _on_mode_change(self):
+        """Show/enable the OCR provider/key/model/url fields only when
+        mode == 'ocr' (and the master toggle is on); refresh the exiftool
+        warning label visibility for EXIF mode.
+        """
+        enabled = self.image_conversion_enabled.get()
+        is_ocr = self.image_mode.get() == "ocr"
+        ocr_active = enabled and is_ocr
+
+        self.image_provider_combo.config(state=("readonly" if ocr_active else "disabled"))
+        if ocr_active:
+            self._on_provider_change()
+        else:
+            self.image_api_key_entry.config(state="disabled")
+            self.image_model_entry.config(state="disabled")
+            self.image_base_url_entry.config(state="disabled")
+
+        show_warning = enabled and not is_ocr and not self._exiftool_available()
+        if show_warning:
+            self.image_exiftool_warning.grid()
+        else:
+            self.image_exiftool_warning.grid_remove()
+
+    def _on_provider_change(self, *_):
+        """Update base_url/model from the provider preset table and toggle
+        the api_key/base_url widget states based on the selected provider.
+        """
+        presets = {
+            "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.0-flash", True),
+            "ollama": ("http://localhost:11434/v1", "llava", False),
+            "custom": ("", "", True),
+        }
+        provider = self.image_provider.get()
+        base_url, model, needs_key = presets.get(provider, presets["gemini"])
+        if provider != "custom":
+            self.image_base_url.set(base_url)
+            self.image_model.set(model)
+
+        enabled = self.image_conversion_enabled.get()
+        ocr_active = enabled and self.image_mode.get() == "ocr"
+
+        self.image_api_key_entry.config(state=("normal" if (ocr_active and needs_key) else "disabled"))
+        self.image_model_entry.config(state=("normal" if ocr_active else "disabled"))
+        if ocr_active:
+            self.image_base_url_entry.config(state=("normal" if provider == "custom" else "readonly"))
+        else:
+            self.image_base_url_entry.config(state="disabled")
+
     def _open_log(self):
         """Open last log file in Notepad."""
         if self._last_log_path:
@@ -322,7 +476,15 @@ class FileConverterApp:
             "extensions": {ext: var.get() for ext, var in self.ext_vars.items()},
             "force": self.force_convert.get(),
             "logging": self.enable_logging.get(),
-            "dry_run": self.dry_run.get()
+            "dry_run": self.dry_run.get(),
+            "image_conversion": {
+                "enabled": self.image_conversion_enabled.get(),
+                "mode": self.image_mode.get(),
+                "provider": self.image_provider.get(),
+                "api_key": self.image_api_key.get(),
+                "model": self.image_model.get(),
+                "base_url": self.image_base_url.get(),
+            },
         }
         try:
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -348,6 +510,18 @@ class FileConverterApp:
     def _on_close(self):
         self.cancelled = True
         self.root.destroy()
+
+    def _build_markitdown(self):
+        """Construct the MarkItDown converter instance for this run.
+
+        STUB (section 2 scope): always returns a plain MarkItDown() so
+        worker_thread() keeps working while the GUI controls are wired up.
+        The real EXIF/OCR-aware factory (openai client construction from
+        image_conversion_enabled/mode/provider/api_key/model/base_url, plus
+        exiftool discoverability + EXIFTOOL_PATH env wiring) is implemented
+        in section 4.
+        """
+        return MarkItDown()
 
     @staticmethod
     def _is_safe_path(base_dir: Path, target: Path) -> bool:
@@ -417,7 +591,7 @@ class FileConverterApp:
         audio_attempted = audio_converted = audio_failed = 0
 
         # Initialize converter once per thread
-        md = MarkItDown()
+        md = self._build_markitdown()
 
         for i, (src, dst, existed) in enumerate(tasks):
             if self.cancelled:
