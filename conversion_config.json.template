@@ -26,5 +26,13 @@
     },
     "force": false,
     "dry_run": false,
-    "logging": true
+    "logging": true,
+    "image_conversion": {
+        "enabled": false,
+        "mode": "exif",
+        "provider": "gemini",
+        "api_key": "",
+        "model": "gemini-2.0-flash",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
+    }
 }
