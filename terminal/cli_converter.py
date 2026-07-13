@@ -125,6 +125,14 @@ if __name__ == "__main__":
     input_folder = Path(prompt_path("Enter input folder path", cfg.get("input_folder")))
     output_folder = Path(prompt_path("Enter output folder path", cfg.get("output_folder")))
 
+    img_cfg = cfg.get("image_conversion", {})
+    image_conversion_enabled = False
+    image_mode = img_cfg.get("mode", "exif")
+    image_provider = img_cfg.get("provider", "gemini")
+    image_api_key = img_cfg.get("api_key", "")
+    image_model = img_cfg.get("model", "gemini-2.0-flash")
+    image_base_url = img_cfg.get("base_url", "https://generativelanguage.googleapis.com/v1beta/openai/")
+
     raw_exts = cfg.get('extensions', [])
     if isinstance(raw_exts, dict):
         default_ext_str = ','.join(k for k, v in raw_exts.items() if v)
@@ -145,6 +153,31 @@ if __name__ == "__main__":
         print("Error: No supported extensions selected. Exiting.")
         sys.exit(1)
 
+    if {".jpg", ".jpeg", ".png"} & supported_extensions:
+        # Prompt for image conversion settings
+        resp = input("Enable image conversion (EXIF/OCR)? (y/n): ").strip().lower()
+        image_conversion_enabled = resp == "y"
+        if image_conversion_enabled:
+            mode_resp = input("Image mode: (1) EXIF metadata only  (2) Full OCR: ").strip()
+            image_mode = "ocr" if mode_resp == "2" else "exif"
+            if image_mode == "ocr":
+                provider_resp = input("LLM provider: (1) Gemini free tier  (2) Ollama local  (3) Custom: ").strip()
+                image_provider = {"1": "gemini", "2": "ollama", "3": "custom"}.get(provider_resp, image_provider)
+                # Provider preset table (duplicated literal dict):
+                presets = {
+                    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.0-flash"),
+                    "ollama": ("http://localhost:11434/v1", "llava"),
+                    "custom": ("", ""),
+                }
+                preset_base_url, preset_model = presets[image_provider]
+                image_base_url = preset_base_url if image_provider != "custom" else input("Base URL: ").strip()
+                image_model = input(f"Model name [{preset_model}]: ").strip() or preset_model
+                if image_provider != "ollama":
+                    image_api_key = input("API key (leave blank to keep existing): ").strip() or image_api_key
+            else:  # EXIF mode
+                # Check exiftool discoverability and warn (section 4 will add this logic)
+                pass
+
     force_convert = input(f"Force convert all files? (y/n) [{'y' if cfg.get('force', False) else 'n'}]: ").strip().lower() or ('y' if cfg.get("force", False) else 'n')
     dry_run = input(f"Dry run only? (y/n) [{'y' if cfg.get('dry_run', False) else 'n'}]: ").strip().lower() or ('y' if cfg.get("dry_run", False) else 'n')
     logging_enabled = input(f"Enable logging? (y/n) [{'y' if cfg.get('logging', True) else 'n'}]: ").strip().lower() or ('y' if cfg.get("logging", True) else 'n')
@@ -156,7 +189,15 @@ if __name__ == "__main__":
         "extensions": {ext: True for ext in supported_extensions},
         "force": force_convert == 'y',
         "dry_run": dry_run == 'y',
-        "logging": logging_enabled == 'y'
+        "logging": logging_enabled == 'y',
+        "image_conversion": {
+            "enabled": image_conversion_enabled,
+            "mode": image_mode,
+            "provider": image_provider,
+            "api_key": image_api_key,
+            "model": image_model,
+            "base_url": image_base_url,
+        }
     })
 
     # ─── INITIALIZATION ───────────────────────────────────────────────────────
