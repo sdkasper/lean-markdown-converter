@@ -40,9 +40,16 @@ Both read/write **`conversion_config.json`** (persisted user settings: folders, 
 
 ### Supported Formats
 
-`.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
+`.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.jpeg` `.jpg` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.png` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
 
-**Note:** Image formats (BMP, GIF, JPEG, JPG, PNG, TIFF) are NOT supported. MarkItDown cannot extract text from images without an LLM configured, so these were removed to avoid silent empty outputs.
+**Note:** `.bmp`, `.gif`, and `.tiff` are NOT supported. MarkItDown's `ImageConverter` only accepts `.jpg`/`.jpeg`/`.png` by extension (or `image/jpeg`/`image/png` by mimetype) — verified directly against the installed package for both markitdown 0.1.5 and the latest 0.1.6. Selecting a `.bmp`/`.gif`/`.tiff` file raises `UnsupportedFormatException` on every conversion attempt (a 100% failure rate, not a silent empty output), so they're deliberately excluded from `SUPPORTED_EXTENSIONS`. Re-adding them would require an upstream MarkItDown change.
+
+### Image Support
+
+Re-enabled for `.jpg`/`.jpeg`/`.png` (previously removed entirely). MarkItDown's `ImageConverter` supports two independent layers, both triggered automatically by `MarkItDown().convert(...)` — no code changes are needed beyond including the extension in the allowlist:
+
+- **Basic (EXIF metadata) — no LLM required, but needs the `exiftool` binary.** MarkItDown auto-detects `exiftool` via the `EXIFTOOL_PATH` env var or well-known system install locations (e.g. `C:\Program Files`, `/usr/local/bin`) at `MarkItDown()` construction time; it is **not** currently bundled with this app (unlike `ffmpeg`, which is bundled for audio). If `exiftool` isn't found, image conversion still succeeds but returns empty text content — the existing "skip empty output" logic in both CLI and GUI will then treat the file as skipped rather than converted. Install exiftool and ensure it's discoverable (env var or standard path) to get metadata like `ImageSize`, `DateTimeOriginal`, `GPSPosition`, etc.
+- **Advanced (LLM OCR/description) — optional, requires wiring.** Passing `llm_client` and `llm_model` (and optionally `llm_prompt`) to the `MarkItDown(...)` constructor makes the `ImageConverter` call the client's `chat.completions.create(...)` (OpenAI-compatible) to generate a `# Description:` section. **Neither `gui/gui_converter.py` nor `terminal/cli_converter.py` currently passes these kwargs** — both instantiate `MarkItDown()` with no arguments, so today only the EXIF-metadata path is active. Adding a settings field for an API key/model and passing it through to the `MarkItDown()` constructor is a separate follow-up if LLM-based descriptions are wanted.
 
 ### Key files
 

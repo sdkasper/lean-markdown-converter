@@ -13,9 +13,11 @@ Run `LPMarkdownConverterSetup.exe` and follow the prompts to install. Launch via
 
 ## 📦 Supported Formats
 
-`.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
+`.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.jpeg` `.jpg` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.png` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
 
 Audio formats (`.mp3`, `.m4a`, `.wav`) require FFmpeg — bundled in `resources/bin/ffmpeg.exe` for the standalone app.
+
+Images (`.jpg`, `.jpeg`, `.png`) are converted to Markdown containing EXIF metadata (image size, date taken, GPS position, etc.), if the [`exiftool`](https://exiftool.org/) binary is installed and discoverable (via the `EXIFTOOL_PATH` environment variable or a standard system install location) — it is not currently bundled with this app. Without exiftool, images still convert without erroring but produce empty output, which the converter reports as "skipped." MarkItDown also supports LLM-generated image descriptions (OCR/captioning) via an optional `llm_client`/`llm_model`, but that isn't wired into the CLI/GUI settings yet. `.bmp`, `.gif`, and `.tiff` are not supported — MarkItDown's image converter only accepts `.jpg`/`.jpeg`/`.png`.
 
 ## 🔧 Setup (from source)
 
@@ -85,7 +87,7 @@ To create the Windows installer, open `setup/LPMarkdownConverterSetup.iss` in [I
 
 ## ✅ Testing & CI/CD
 
-The project includes a comprehensive test suite (117 tests) with GitHub Actions CI/CD integration:
+The project includes a comprehensive test suite (141 tests) with GitHub Actions CI/CD integration:
 
 - **Tests run on:** Python 3.11 and 3.13 (automated on every push)
 - **Test framework:** pytest

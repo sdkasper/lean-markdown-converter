@@ -19,10 +19,13 @@ import gui.gui_converter as gui_mod
 CLI_EXTS = {e.lower() for e in cli_mod.SUPPORTED_EXTENSIONS}
 GUI_EXTS = {e.lower() for e in gui_mod.SUPPORTED_EXTENSIONS}
 
-# Expected exact count across both modules (18 types, no .zip, no images)
-# Images (.jpg, .png, .bmp, .gif, .tiff) intentionally excluded because MarkItDown
-# cannot extract text from images without an LLM configured.
-EXPECTED_COUNT = 18
+# Expected exact count across both modules (21 types, no .zip)
+# Images: .jpg, .jpeg, .png are supported (MarkItDown's ImageConverter extracts
+# EXIF metadata and, optionally, LLM-generated descriptions). .bmp, .gif, .tiff
+# are intentionally excluded — MarkItDown's ImageConverter only accepts
+# .jpg/.jpeg/.png (verified against markitdown 0.1.5 and 0.1.6); other image
+# extensions raise UnsupportedFormatException regardless of LLM configuration.
+EXPECTED_COUNT = 21
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -108,9 +111,7 @@ class TestZipExcluded:
 class TestCommonFormatsPresent:
     """Core document and media types that users depend on must be present."""
 
-    # .jpg and .png intentionally excluded - images are not supported
-    # MarkItDown cannot extract text from images without an LLM configured
-    REQUIRED = [".pdf", ".docx", ".xlsx", ".pptx", ".csv", ".html"]
+    REQUIRED = [".pdf", ".docx", ".xlsx", ".pptx", ".csv", ".html", ".jpg", ".png"]
 
     @pytest.mark.parametrize("ext", REQUIRED)
     def test_required_extension_in_cli(self, ext):
@@ -121,6 +122,32 @@ class TestCommonFormatsPresent:
     def test_required_extension_in_gui(self, ext):
         """GUI must support common format."""
         assert ext in GUI_EXTS, f"Expected extension '{ext}' missing from GUI list"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Unsupported image formats stay excluded (MarkItDown limitation, not an oversight)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestUnsupportedImageFormatsExcluded:
+    """
+    .bmp, .gif, .tiff must stay OUT of the allowlist. MarkItDown's ImageConverter
+    (both 0.1.5 and 0.1.6, verified directly against the installed package) only
+    accepts .jpg/.jpeg/.png by extension or image/jpeg /image/png by mimetype.
+    Selecting .bmp/.gif/.tiff would let users pick files that always raise
+    UnsupportedFormatException on conversion - a 100% failure rate, not a
+    silently-empty output. Do not add these back without a MarkItDown upstream
+    change that actually accepts them.
+    """
+
+    NOT_YET_SUPPORTED = [".bmp", ".gif", ".tiff"]
+
+    @pytest.mark.parametrize("ext", NOT_YET_SUPPORTED)
+    def test_unsupported_image_ext_not_in_cli(self, ext):
+        assert ext not in CLI_EXTS, f"'{ext}' is not accepted by MarkItDown's ImageConverter"
+
+    @pytest.mark.parametrize("ext", NOT_YET_SUPPORTED)
+    def test_unsupported_image_ext_not_in_gui(self, ext):
+        assert ext not in GUI_EXTS, f"'{ext}' is not accepted by MarkItDown's ImageConverter"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

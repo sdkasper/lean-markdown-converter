@@ -38,13 +38,17 @@ else:
 os.makedirs(LOGS_DIR, exist_ok=True)
 SUPPORTED_EXTENSIONS = [
     ".csv", ".doc", ".docx", ".epub", ".htm", ".html",
-    ".ipynb", ".json", ".m4a", ".mp3", ".msg", ".pdf",
+    ".ipynb", ".jpeg", ".jpg", ".json", ".m4a", ".mp3", ".msg", ".pdf", ".png",
     ".ppt", ".pptx", ".wav", ".xls", ".xlsx", ".xml"
 ]
+# Note: .bmp, .gif, .tiff are NOT included — MarkItDown's ImageConverter only
+# accepts .jpg/.jpeg/.png (verified against markitdown 0.1.5 and 0.1.6). Other
+# image extensions raise UnsupportedFormatException regardless of LLM config.
 EXT_GROUPS = {
     "Documents":    [".doc", ".docx", ".epub", ".msg", ".pdf", ".ppt", ".pptx"],
     "Spreadsheets": [".csv", ".xls", ".xlsx"],
     "Audio":        [".m4a", ".mp3", ".wav"],
+    "Images":       [".jpeg", ".jpg", ".png"],
     "Web / Data":   [".htm", ".html", ".ipynb", ".json", ".xml"],
 }
 
