@@ -205,3 +205,4 @@ cython_debug/
 .worktrees/
 # Installer build staging (extracted exiftool zip)
 setup/staging/
+selftest_report.json
