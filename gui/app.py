@@ -41,7 +41,7 @@ class FileConverterApp:
 
     def __init__(self, root):
         self.root = root
-        self.root.title(f"{APP_NAME} v{VERSION}")
+        self.root.title(f"{APP_NAME} {VERSION}")
         self.root.minsize(640, 480)
 
         # Startup diagnostics + pydub wiring — once, at construction time.

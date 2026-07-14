@@ -179,7 +179,7 @@ def prompt_image_conversion(current: dict) -> dict:
 
 def main() -> None:
     print("=" * 60)
-    print(f"{APP_NAME} v{VERSION}")
+    print(f"{APP_NAME} {VERSION}")
     print(AUTHOR_NAME)
     print("=" * 60)
 

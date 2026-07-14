@@ -112,3 +112,4 @@ Dev: project root. Frozen: `%APPDATA%\LeanProductivity\config.json`. Extensions 
 - Built artifacts: `dist/` (exe) and `setup/` (installer), both LFS
 - `Input/`/`Output/` contain demo files (committed); `logs/`, `setup/staging/`, `selftest_report.json` gitignored
 - Release: build both artifacts (`build.ps1 -Installer`), selftest, commit via LFS, tag, publish to GitHub Releases
+- Tag/version convention (since 2.0.0): NO "v" prefix anywhere - tags are plain `2.0.0`, and the app displays "Lean Markdown Converter 2.0.0" (window title, CLI banner, log header). Legacy v-prefixed tags (v1.0.x and older) remain untouched.

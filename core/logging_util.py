@@ -32,7 +32,7 @@ class RunLogger:
                 self.logs_dir.mkdir(parents=True, exist_ok=True)
                 stamp = now.strftime("%Y%m%d_%H%M%S")
                 candidate = self.logs_dir / f"conversion_{stamp}.log"
-                header = f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] Lean Markdown Converter v{self.version}\n"
+                header = f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] Lean Markdown Converter {self.version}\n"
                 candidate.write_text(header, encoding="utf-8")
                 self._log_path = candidate
 
