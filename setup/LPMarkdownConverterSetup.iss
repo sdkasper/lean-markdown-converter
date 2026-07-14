@@ -56,6 +56,12 @@ Name: "exiftool"; Description: "Image metadata support (EXIF mode) - installs Ex
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
+[InstallDelete]
+; Orphaned payloads from v1.0.8 and earlier, which installed resources\* into {app}
+; (v2.0.0 ships binaries under {app}\tools\ as optional components instead).
+Type: filesandordirs; Name: "{app}\bin"
+Type: files; Name: "{app}\logo.png"
+
 [Files]
 Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\resources\LeanProductivity.ico"; DestDir: "{app}"; Flags: ignoreversion; Components: core
