@@ -18,7 +18,7 @@ from markitdown import MarkItDown
 PROVIDER_PRESETS = {
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "model": "gemini-2.5-flash",
+        "model": "gemini-flash-latest",
         "needs_key": True,
     },
     "ollama": {

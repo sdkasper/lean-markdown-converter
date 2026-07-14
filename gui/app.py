@@ -160,7 +160,7 @@ class FileConverterApp:
         self.image_mode = tk.StringVar(value=img_cfg.get("mode", "exif"))
         self.image_provider = tk.StringVar(value=img_cfg.get("provider", "gemini"))
         self.image_api_key = tk.StringVar(value=img_cfg.get("api_key", ""))
-        self.image_model = tk.StringVar(value=img_cfg.get("model", "gemini-2.5-flash"))
+        self.image_model = tk.StringVar(value=img_cfg.get("model", "gemini-flash-latest"))
         self.image_base_url = tk.StringVar(value=img_cfg.get("base_url", ""))
 
         img_frame = ttk.LabelFrame(self.root, text="Image Conversion")

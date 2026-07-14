@@ -29,7 +29,7 @@ DEFAULT_IMAGE_CONVERSION = {
     "mode": "exif",             # "exif" | "ocr"
     "provider": "gemini",       # "gemini" | "ollama" | "custom"
     "api_key": "",
-    "model": "gemini-2.5-flash",
+    "model": "gemini-flash-latest",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
 }
 

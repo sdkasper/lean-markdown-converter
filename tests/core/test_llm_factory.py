@@ -77,7 +77,7 @@ def test_gemini_preset_uses_default_base_url_and_model(monkeypatch):
     assert len(calls) == 1
     assert calls[0]["api_key"] == "my-secret-key"
     assert calls[0]["base_url"] == PROVIDER_PRESETS["gemini"]["base_url"]
-    assert md._llm_model == "gemini-2.5-flash"
+    assert md._llm_model == "gemini-flash-latest"
     assert md._llm_client is not None
 
 
