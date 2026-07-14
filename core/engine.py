@@ -6,11 +6,44 @@ call MarkItDown().convert(), guard against empty output, write the result,
 and track counts (including audio-specific counters per NFR-006).
 """
 
+import os
+import tempfile
 import traceback
 from dataclasses import dataclass
+from pathlib import Path
 
 from core.constants import AUDIO_EXTENSIONS
 from core.logging_util import RunLogger
+
+
+def _m4a_to_temp_wav(src) -> "Path | None":
+    """Pre-decode an M4A to a temporary WAV, bypassing an upstream bug.
+
+    MarkItDown's AudioConverter feeds M4A/MP4 file streams to ffmpeg via a
+    stdin pipe (pydub.AudioSegment.from_file(stream, format="mp4")). MP4
+    containers usually keep their index (moov atom) at the END of the file,
+    which a pipe cannot seek to - ffmpeg then silently produces 0.00s of
+    audio and transcription fails with UnknownValueError on every M4A that
+    is not "faststart" encoded (verified 2026-07-14 with a known-speech
+    fixture: path-based decode 7.8s / -20 dBFS, stream-based 0.00s / -inf).
+
+    Decoding by PATH works, so we transcode to a temp WAV and hand that to
+    MarkItDown instead. Trade-off: M4A metadata tags (Title/Artist) are not
+    carried into the temp WAV, so output is transcript-only.
+
+    Returns the temp WAV path, or None when pydub is unavailable (caller
+    falls back to the direct path).
+    """
+    try:
+        from pydub import AudioSegment
+    except ImportError:
+        return None
+
+    segment = AudioSegment.from_file(str(src))
+    fd, tmp_name = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    segment.export(tmp_name, format="wav")
+    return Path(tmp_name)
 
 
 @dataclass
@@ -41,8 +74,15 @@ def convert_one(task, md, run_logger: RunLogger) -> str:
     dst = task.dst
     is_audio = src.suffix.lower() in AUDIO_EXTENSIONS
 
+    tmp_wav = None
     try:
-        result = md.convert(str(src))
+        convert_path = str(src)
+        if src.suffix.lower() == ".m4a":
+            tmp_wav = _m4a_to_temp_wav(src)
+            if tmp_wav is not None:
+                convert_path = str(tmp_wav)
+
+        result = md.convert(convert_path)
         content = result.text_content or ""
 
         if not content.strip():
@@ -71,6 +111,13 @@ def convert_one(task, md, run_logger: RunLogger) -> str:
         else:
             run_logger.log(f"Error: {src} -> {exc_type}: {err}")
         return "error"
+
+    finally:
+        if tmp_wav is not None:
+            try:
+                os.unlink(tmp_wav)
+            except OSError:
+                pass
 
 
 def run_conversion(tasks, md, *, on_progress=None, should_cancel=None, run_logger: RunLogger) -> ConversionCounts:

@@ -281,3 +281,94 @@ class TestRealMarkItDownIntegration:
 
         assert status == "converted"
         assert "Hello World" in task.dst.read_text(encoding="utf-8")
+
+
+class TestM4aPipeWorkaround:
+    """M4A files must be pre-decoded to WAV by path before MarkItDown sees
+    them: MarkItDown pipes M4A streams to ffmpeg via stdin, which cannot
+    seek to the MP4 index (moov atom) and silently yields empty audio.
+    """
+
+    def test_m4a_routes_through_temp_wav(self, tmp_path, monkeypatch):
+        """convert_one must hand MarkItDown a .wav path for .m4a sources."""
+        import core.engine as engine_mod
+
+        src = tmp_path / "voice memo.m4a"
+        src.write_bytes(b"fake-m4a-bytes")
+        fake_wav = tmp_path / "decoded.wav"
+        fake_wav.write_bytes(b"fake-wav-bytes")
+        monkeypatch.setattr(engine_mod, "_m4a_to_temp_wav", lambda s: fake_wav)
+
+        seen_paths = []
+
+        class FakeResult:
+            text_content = "### Audio Transcript:\nhello"
+
+        class FakeMd:
+            def convert(self, path):
+                seen_paths.append(path)
+                return FakeResult()
+
+        task = ConversionTask(src=src, dst=tmp_path / "out.md", existed=False)
+        logger = RunLogger(tmp_path / "logs", "2.0.0", enabled=False)
+
+        status = convert_one(task, FakeMd(), logger)
+
+        assert status == "converted"
+        assert seen_paths == [str(fake_wav)]
+        assert not fake_wav.exists()  # temp wav cleaned up after conversion
+
+    def test_non_m4a_uses_original_path(self, tmp_path):
+        src = tmp_path / "doc.pdf"
+        src.write_bytes(b"%PDF")
+
+        seen_paths = []
+
+        class FakeResult:
+            text_content = "content"
+
+        class FakeMd:
+            def convert(self, path):
+                seen_paths.append(path)
+                return FakeResult()
+
+        task = ConversionTask(src=src, dst=tmp_path / "out.md", existed=False)
+        logger = RunLogger(tmp_path / "logs", "2.0.0", enabled=False)
+
+        convert_one(task, FakeMd(), logger)
+
+        assert seen_paths == [str(src)]
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_real_speech_m4a_transcribes(self, tmp_path):
+        """End-to-end regression for the pipe bug: a known-speech M4A must
+        produce a transcript (requires network for Google speech API)."""
+        from core.binaries import configure_pydub
+
+        if not configure_pydub():
+            pytest.skip("ffmpeg/ffprobe not available")
+
+        fixture = Path(__file__).parent.parent / "fixtures" / "speech.m4a"
+        md = MarkItDown()
+        logger = RunLogger(tmp_path / "logs", "2.0.0", enabled=False)
+
+        # Google's free speech API is occasionally flaky. The regression this
+        # test guards against (empty audio from the stdin-pipe bug) fails on
+        # EVERY attempt, so retrying transient failures does not mask it.
+        import time
+
+        task = None
+        status = None
+        for attempt in range(3):
+            task = ConversionTask(
+                src=fixture, dst=tmp_path / f"out{attempt}.md", existed=False
+            )
+            status = convert_one(task, md, logger)
+            if status == "converted":
+                break
+            time.sleep(2)
+
+        assert status == "converted"
+        text = task.dst.read_text(encoding="utf-8").lower()
+        assert "quick brown fox" in text

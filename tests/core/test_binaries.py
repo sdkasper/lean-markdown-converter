@@ -14,6 +14,22 @@ import pytest
 from core import binaries
 
 
+@pytest.fixture(autouse=True)
+def _preserve_exiftool_env():
+    """find_exiftool() sets os.environ["EXIFTOOL_PATH"] as a deliberate side
+    effect (MarkItDown reads it at construction). Tests here trigger it with
+    fake temp paths, and monkeypatch cannot revert mutations the function
+    itself makes - without this guard, a stale fake path leaks into later
+    real-MarkItDown tests and breaks every audio/image conversion.
+    """
+    saved = os.environ.get("EXIFTOOL_PATH")
+    yield
+    if saved is None:
+        os.environ.pop("EXIFTOOL_PATH", None)
+    else:
+        os.environ["EXIFTOOL_PATH"] = saved
+
+
 # ─── find_tool ordering ────────────────────────────────────────────────────
 
 def test_find_tool_which_hit_wins(monkeypatch):
