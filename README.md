@@ -1,135 +1,100 @@
+# Lean Markdown Converter 2.0.0
 
-# Lean Markdown Converter
+Batch convert 21 file formats to Markdown using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Choose between GUI (tkinter, drag - drop friendly) or CLI (interactive terminal prompts). Run locally on Windows with no account required.
 
-Batch convert various file formats to Markdown using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Provides both a **CLI** (interactive terminal) and a **GUI** (tkinter) for technical and non-technical users alike.
+## Features
 
-## 🖥️ Windows Standalone App
+- **Batch conversion** - point at a folder, convert all supported files at once
+- **Smart skip logic** - skip already - converted files, dangerous extensions, empty inputs
+- **Folder mirroring** - output preserves your source directory structure
+- **Dry - run mode** - preview conversions before committing
+- **Live file count** - GUI shows count updates as you adjust filters
+- **Cancel anytime** - conversion runs in a background worker thread
+- **Settings persistence** - your last folder, extensions, and options are remembered
+- **Timestamped logs** - detailed logs per run in `%APPDATA%\LeanProductivity\logs\`
 
-A Windows 11 standalone installer is available — no Python, Git, or additional dependencies required. Everything (Magika models, FFmpeg, etc.) is bundled into a single EXE.
+## Supported Formats (21)
 
-**Download:** [https://kspr.me/bulkmd](https://kspr.me/bulkmd)
+CSV, DOC, DOCX, EPUB, HTM, HTML, IPYNB, JPEG, JPG, JSON, M4A, MP3, MSG, PDF, PNG, PPT, PPTX, WAV, XLS, XLSX, XML.
 
-Run `LPMarkdownConverterSetup.exe` and follow the prompts to install. Launch via **Start Menu > Lean Markdown Converter** or use the optional desktop shortcut.
+Note: Image formats (JPG, PNG) require an image conversion mode (see below). If unavailable, they are skipped with a warning.
 
-## 📦 Supported Formats
+## Image Conversion
 
-`.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.jpeg` `.jpg` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.png` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
+Two independent modes - choose privacy - first or speed.
 
-Audio formats (`.mp3`, `.m4a`, `.wav`) require FFmpeg — bundled in `resources/bin/ffmpeg.exe` for the standalone app.
+**EXIF mode (default, local)**: Extracts metadata using ExifTool. No API calls, no images sent anywhere. ExifTool is optional (installer component ~40 MB, or in system PATH). Missing ExifTool - file is skipped, no error.
 
-Images (`.jpg`, `.jpeg`, `.png`) are converted to Markdown containing EXIF metadata (image size, date taken, GPS position, etc.), if the [`exiftool`](https://exiftool.org/) binary is installed and discoverable (via the `EXIFTOOL_PATH` environment variable or a standard system install location) — it is not currently bundled with this app. Without exiftool, images still convert without erroring but produce empty output, which the converter reports as "skipped." MarkItDown also supports LLM-generated image descriptions (OCR/captioning) via an optional `llm_client`/`llm_model`, but that isn't wired into the CLI/GUI settings yet. `.bmp`, `.gif`, and `.tiff` are not supported — MarkItDown's image converter only accepts `.jpg`/`.jpeg`/`.png`.
+**AI OCR mode**: Sends images to a provider for text extraction via OpenAI - compatible API. Choose:
+- **Ollama (fully private)**: Run `ollama pull glm-ocr` locally. All images stay on your machine. Free, no API keys needed.
+- **Gemini (online)**: Google's flash model. Requires API key. Privacy: images are sent to Google but deleted after processing.
+- **Custom endpoint**: OpenAI or OpenAI - compatible. You control which provider handles the images.
 
-## 🔧 Setup (from source)
+Configure image conversion in the GUI settings or `conversion_config.json` (dev mode only; frozen app uses `%APPDATA%\LeanProductivity\config.json`).
+
+## Audio Transcription
+
+MP3, M4A, and WAV files are transcribed to text using Google's speech service (requires internet). The app uses ffmpeg and ffprobe to decode audio - both are included in the optional installer audio component (~226 MB), or sourced from your system PATH.
+
+Note: M4A transcription was completely broken in v1.x due to a stdin - pipe limitation. v2.0.0 fixes this by pre - decoding M4A to WAV before transcription.
+
+## Installation
+
+### From Installer (Recommended)
+
+1. Download `LeanMarkdownConverterSetup.exe` from [Releases](https://github.com/sdkasper/lean-markdown-converter/releases).
+2. Run the installer. Check the components you want:
+   - **Core** (required) - the app itself (~120 MB)
+   - **Audio** (optional) - ffmpeg + ffprobe for MP3/M4A/WAV transcription (~226 MB)
+   - **ExifTool** (optional, default - checked) - image metadata extraction (~40 MB)
+3. Click Install. Shortcuts are created in your Start Menu.
+
+**Upgrading from v1.x**: If you have v1 installed, the installer will preserve your settings. Keep the **Audio** component checked unless you don't need audio transcription.
+
+### Portable (No Installer)
+
+Download `LPMarkdownConverter.exe` from [Releases](https://github.com/sdkasper/lean-markdown-converter/releases) and run directly. Settings are stored in `%APPDATA%\LeanProductivity\config.json`. Audio/ExifTool must be in your system PATH.
+
+## Build from Source
+
+Requires Python 3.13+, Git LFS (for binary artifacts).
 
 ```bash
-# Clone the repository
-git clone https://github.com/sdkasper/lp-bulk-markdown-converter.git
-cd lp-bulk-markdown-converter
-
-# Create and activate a virtual environment
-python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
-
-# Install dependencies
+# Clone and setup
+git clone https://github.com/sdkasper/lean-markdown-converter.git
+cd lean-markdown-converter
 pip install -r requirements.txt
+
+# Run (dev mode)
+python -m cli.main          # CLI - interactive prompts
+python -m gui.main          # GUI - tkinter
+
+# Test
+pytest tests/               # 184 - test suite
+
+# Build (PowerShell)
+powershell build.ps1        # exe only -> dist/LPMarkdownConverter.exe
+powershell build.ps1 -Installer   # exe + Inno Setup installer
+
+# Verify build
+dist/LPMarkdownConverter.exe --selftest    # must exit 0
 ```
 
-**Requirements:** Python 3.13+, pip
+## Architecture
 
-## ▶️ Usage
+Shared - core design: All conversion logic lives in `core/` (constants, config, binary discovery, LLM integration, file scanning, transcoding engine). `gui/` and `cli/` are thin presentation layers with zero duplicated logic. 9 modules total, 184 unit tests.
 
-### CLI Script
+## License
 
-```bash
-python terminal/cli_converter.py
-```
+See [LICENSE.txt](setup/LICENSE.txt) in the installer package or `setup/LICENSE.txt` in the source tree.
 
-You will be prompted to:
-- Enter input/output folders
-- Choose which file types to convert (comma-separated)
-- Enable/disable logging, dry run, and force conversion
+## Troubleshooting
 
-### GUI Script
+- **Images skipped with warning**: ExifTool missing (dev mode) or OCR not configured. Run the installer with ExifTool component, or configure an OCR provider in settings.
+- **Audio transcription hangs or fails**: Check ffmpeg/ffprobe are installed (installer audio component or system PATH). Run `ffmpeg -version` in terminal to verify.
+- **Settings not persisting**: Frozen app stores config in `%APPDATA%\LeanProductivity\config.json`. Dev mode uses `conversion_config.json` in the project root.
+- **Build fails on Windows**: Ensure PowerShell execution policy allows unsigned scripts: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`.
 
-```bash
-python gui/gui_converter.py
-```
+## Support
 
-- Browse and select your input/output folders
-- Use checkboxes to select file types
-- Enable dry run, logging, and force conversion with simple toggles
-- A progress bar shows conversion status
-
-Both modes save preferences automatically in `conversion_config.json`.
-
-### 🧰 How the Scripts Differ
-
-| Feature              | CLI (`terminal/cli_converter.py`)  | GUI (`gui/gui_converter.py`)       |
-|----------------------|------------------------------------|-------------------------------------|
-| Interface            | Text-based, terminal prompts       | Full graphical interface            |
-| Dependencies         | Python only                        | Requires `tkinter`                  |
-| Use case             | Developers / Power users           | Non-technical users                 |
-| Automation-friendly  | ✅ Yes                              | ❌ Manual input only                |
-
-## 🏗️ Build
-
-Build the standalone Windows `.exe` with PyInstaller:
-
-```powershell
-# PowerShell
-.\build.ps1
-```
-
-This runs `pyinstaller LPMarkdownConverter.spec`, producing `dist/LPMarkdownConverter.exe`. The spec file bundles `gui/gui_converter.py` as the entry point along with FFmpeg, Magika models, the app icon, and a runtime hook (`hide_console.py`) to suppress console windows.
-
-To create the Windows installer, open `setup/LPMarkdownConverterSetup.iss` in [Inno Setup](https://jrsoftware.org/isinfo.php) and compile.
-
-## ✅ Testing & CI/CD
-
-The project includes a comprehensive test suite (141 tests) with GitHub Actions CI/CD integration:
-
-- **Tests run on:** Python 3.11 and 3.13 (automated on every push)
-- **Test framework:** pytest
-- **Coverage:** 26.56% of codebase
-- **Pass rate:** 99.1%
-
-Run tests locally with:
-
-```bash
-pytest tests/
-```
-
-View the full release notes and test results: [GitHub Releases](https://github.com/sdkasper/lean-markdown-converter/releases)
-
-## 📁 Project Structure
-
-```
-├── terminal/cli_converter.py    # CLI entry point
-├── gui/gui_converter.py         # GUI entry point (PyInstaller target)
-├── conversion_config.json       # Persisted user settings
-├── hide_console.py              # PyInstaller runtime hook
-├── LPMarkdownConverter.spec     # PyInstaller build spec
-├── build.ps1                    # Build script
-├── requirements.txt             # Pinned Python dependencies
-├── resources/
-│   ├── bin/ffmpeg.exe           # Bundled FFmpeg for audio support
-│   ├── LeanProductivity.ico     # App icon
-│   └── logo.png                 # Logo
-├── setup/
-│   ├── LPMarkdownConverterSetup.iss   # Inno Setup installer script
-│   └── LPMarkdownConverterSetup.exe   # Compiled installer (Git LFS)
-├── logs/                        # Conversion session logs
-├── Input/                       # Demo/test input files
-└── Output/                      # Demo/test output files
-```
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE.md).
-
-## 🙋‍♂️ Author
-
-Created by **Sascha D. Kasper** – [LeanProductivity](https://sascha-kasper.com)
-
-Tutorial: [https://youtu.be/vvZ11rPff14](https://youtu.be/vvZ11rPff14)
+This is a single - user desktop tool maintained by Sascha at [LeanProductivity](https://leanproductivity.tv). Report issues on [GitHub](https://github.com/sdkasper/lean-markdown-converter/issues).
