@@ -12,7 +12,7 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 
-from core.constants import AUDIO_EXTENSIONS
+from core.constants import AUDIO_EXTENSIONS, IMAGE_EXTENSIONS
 from core.logging_util import RunLogger
 
 
@@ -59,12 +59,18 @@ class ConversionCounts:
     cancelled: bool = False
 
 
-def convert_one(task, md, run_logger: RunLogger) -> str:
+def convert_one(task, md, run_logger: RunLogger, llm_prompt=None) -> str:
     """Convert a single ConversionTask with the given MarkItDown instance.
 
     Returns one of: 'converted', 'overwritten', 'empty', 'error'.
     Never raises - all exceptions from md.convert() or the file write are
     caught, logged, and reported as 'error' so the batch loop can continue.
+
+    *llm_prompt* (from core.llm_factory.resolve_llm_prompt) is forwarded to
+    md.convert() ONLY for image files (IMAGE_EXTENSIONS) and only when it is
+    not None (i.e. OCR mode is active). Non-image files - including .pptx or
+    .docx with embedded images - must keep MarkItDown's default captioning
+    prompt, so they never receive the kwarg.
 
     NEVER log anything that could contain an API key. Exception messages
     surfaced by openai-compatible clients describe HTTP/auth failures, not
@@ -82,7 +88,11 @@ def convert_one(task, md, run_logger: RunLogger) -> str:
             if tmp_wav is not None:
                 convert_path = str(tmp_wav)
 
-        result = md.convert(convert_path)
+        convert_kwargs = {}
+        if llm_prompt is not None and src.suffix.lower() in IMAGE_EXTENSIONS:
+            convert_kwargs["llm_prompt"] = llm_prompt
+
+        result = md.convert(convert_path, **convert_kwargs)
         content = result.text_content or ""
 
         if not content.strip():
@@ -120,7 +130,7 @@ def convert_one(task, md, run_logger: RunLogger) -> str:
                 pass
 
 
-def run_conversion(tasks, md, *, on_progress=None, should_cancel=None, run_logger: RunLogger) -> ConversionCounts:
+def run_conversion(tasks, md, *, on_progress=None, should_cancel=None, run_logger: RunLogger, llm_prompt=None) -> ConversionCounts:
     """Sequentially convert every task, tallying results into ConversionCounts.
 
     - should_cancel() is checked BEFORE each file ("finish current file"
@@ -128,6 +138,8 @@ def run_conversion(tasks, md, *, on_progress=None, should_cancel=None, run_logge
     - on_progress(i, total, src_name) is invoked AFTER each file completes.
     - Audio-specific counters (audio_attempted/converted/failed) increment
       only for files whose suffix is in AUDIO_EXTENSIONS.
+    - llm_prompt is the effective OCR prompt (or None when OCR is inactive);
+      convert_one applies it to image files only.
     """
     counts = ConversionCounts()
     total = len(tasks)
@@ -141,7 +153,7 @@ def run_conversion(tasks, md, *, on_progress=None, should_cancel=None, run_logge
         if is_audio:
             counts.audio_attempted += 1
 
-        status = convert_one(task, md, run_logger)
+        status = convert_one(task, md, run_logger, llm_prompt=llm_prompt)
 
         if status == "converted":
             counts.converted += 1

@@ -19,6 +19,7 @@ FULL_IMAGE_BLOCK = {
     "api_key": "sk-test-12345",
     "model": "gpt-4o",
     "base_url": "https://api.example.com/v1",
+    "llm_prompt": "Transcribe everything.",
 }
 
 
@@ -92,6 +93,39 @@ class TestImageConversionInvalidValues:
         assert cfg.image_conversion["mode"] == "exif"
         assert cfg.image_conversion["provider"] == "gemini"
         assert cfg.image_conversion["enabled"] is True  # unaffected by mode/provider fallback
+
+
+class TestLlmPromptKey:
+    """Optional llm_prompt override (v2.0.1): config-file-only, backward
+    compatible - legacy blocks without the key load with an empty string,
+    which resolve_llm_prompt maps to the default transcription prompt."""
+
+    def test_legacy_block_without_llm_prompt_gets_empty_default(self):
+        cfg = ConverterConfig.from_dict(
+            {"image_conversion": {"enabled": True, "mode": "ocr", "provider": "gemini"}}
+        )
+        assert cfg.image_conversion["llm_prompt"] == ""
+
+    def test_missing_image_conversion_key_still_has_llm_prompt_default(self):
+        cfg = ConverterConfig.from_dict({"input_folder": "C:/x"})
+        assert cfg.image_conversion["llm_prompt"] == ""
+
+    def test_llm_prompt_round_trips_through_save_load(self, tmp_path):
+        cfg_path = tmp_path / "conversion_config.json"
+        original = ConverterConfig.from_dict(
+            {"image_conversion": {"llm_prompt": "Transcribe tables as HTML."}}
+        )
+        save_config(original, cfg_path)
+        reloaded = load_config(cfg_path)
+        assert reloaded.image_conversion["llm_prompt"] == "Transcribe tables as HTML."
+
+    def test_legacy_ocr_config_resolves_to_default_transcription_prompt(self):
+        from core.llm_factory import DEFAULT_LLM_PROMPT, resolve_llm_prompt
+
+        cfg = ConverterConfig.from_dict(
+            {"image_conversion": {"enabled": True, "mode": "ocr", "provider": "ollama"}}
+        )
+        assert resolve_llm_prompt(cfg.image_conversion) == DEFAULT_LLM_PROMPT
 
 
 class TestApiKeyHandling:

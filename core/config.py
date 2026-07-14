@@ -31,6 +31,10 @@ DEFAULT_IMAGE_CONVERSION = {
     "api_key": "",
     "model": "gemini-flash-latest",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    # Optional OCR prompt override (config-file-only, no GUI widget).
+    # Empty string = use core.llm_factory.DEFAULT_LLM_PROMPT (verbatim
+    # transcription). Legacy configs without this key load unchanged.
+    "llm_prompt": "",
 }
 
 _VALID_MODES = frozenset({"exif", "ocr"})
@@ -131,6 +135,7 @@ def _normalize_image_conversion(raw) -> dict:
     merged["api_key"] = raw.get("api_key", merged["api_key"])
     merged["model"] = raw.get("model", merged["model"])
     merged["base_url"] = raw.get("base_url", merged["base_url"])
+    merged["llm_prompt"] = raw.get("llm_prompt", merged["llm_prompt"])
 
     return merged
 

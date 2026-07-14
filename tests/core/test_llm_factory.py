@@ -10,7 +10,13 @@ import types
 
 import pytest
 
-from core.llm_factory import PROVIDER_PRESETS, LLMConfigError, build_markitdown
+from core.llm_factory import (
+    DEFAULT_LLM_PROMPT,
+    PROVIDER_PRESETS,
+    LLMConfigError,
+    build_markitdown,
+    resolve_llm_prompt,
+)
 
 
 class _FakeOpenAIClient:
@@ -253,3 +259,90 @@ def test_capped_create_still_returns_response(monkeypatch):
     response = md._llm_client.chat.completions.create(model="glm-ocr", messages=[])
 
     assert response.choices[0].message.content == "fake"
+
+
+# ─── llm_prompt resolution (verbatim transcription override) ────────────────
+
+class TestResolveLlmPrompt:
+    def test_none_config_returns_none(self):
+        assert resolve_llm_prompt(None) is None
+        assert resolve_llm_prompt({}) is None
+
+    def test_disabled_returns_none(self):
+        assert resolve_llm_prompt({"enabled": False, "mode": "ocr"}) is None
+
+    def test_exif_mode_returns_none(self):
+        assert resolve_llm_prompt({"enabled": True, "mode": "exif"}) is None
+
+    def test_ocr_without_key_uses_default_transcription_prompt(self):
+        """Legacy configs have no llm_prompt key at all - default applies."""
+        prompt = resolve_llm_prompt({"enabled": True, "mode": "ocr", "provider": "ollama"})
+        assert prompt == DEFAULT_LLM_PROMPT
+
+    def test_ocr_with_custom_prompt_wins(self):
+        prompt = resolve_llm_prompt({
+            "enabled": True, "mode": "ocr", "llm_prompt": "Describe colors only.",
+        })
+        assert prompt == "Describe colors only."
+
+    def test_blank_or_whitespace_prompt_falls_back_to_default(self):
+        assert resolve_llm_prompt({"enabled": True, "mode": "ocr", "llm_prompt": ""}) == DEFAULT_LLM_PROMPT
+        assert resolve_llm_prompt({"enabled": True, "mode": "ocr", "llm_prompt": "   "}) == DEFAULT_LLM_PROMPT
+
+    def test_default_prompt_wording_keeps_transcription_intent(self):
+        lowered = DEFAULT_LLM_PROMPT.lower()
+        assert "transcribe" in lowered
+        assert "verbatim" in lowered
+        assert "markdown" in lowered
+        # Project writing convention: no em dashes / double hyphens anywhere.
+        assert "—" not in DEFAULT_LLM_PROMPT
+        assert "--" not in DEFAULT_LLM_PROMPT
+
+
+# ─── end-to-end: prompt reaches the LLM request through MarkItDown ─────────
+
+# Minimal valid 1x1 transparent PNG (magika/MarkItDown detect it as png).
+_PNG_1X1 = __import__("base64").b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+)
+
+
+def _convert_png_through_engine(monkeypatch, tmp_path, config):
+    """Drive core.engine.convert_one over a real PNG with a real MarkItDown
+    wired to the fake openai client; returns (status, create_calls)."""
+    from core.engine import convert_one
+    from core.logging_util import RunLogger
+    from core.scanner import ConversionTask
+
+    _install_fake_openai(monkeypatch)
+    md = build_markitdown(config)
+
+    src = tmp_path / "sample.png"
+    src.write_bytes(_PNG_1X1)
+    task = ConversionTask(src=src, dst=tmp_path / "sample.md", existed=False)
+    logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+    status = convert_one(task, md, logger, llm_prompt=resolve_llm_prompt(config))
+    return status, md._llm_client.create_calls
+
+
+def test_default_prompt_reaches_llm_request_for_image(monkeypatch, tmp_path):
+    config = {"enabled": True, "mode": "ocr", "provider": "ollama", "api_key": ""}
+    status, create_calls = _convert_png_through_engine(monkeypatch, tmp_path, config)
+
+    assert status == "converted"
+    assert len(create_calls) == 1
+    assert DEFAULT_LLM_PROMPT in str(create_calls[0]["messages"])
+
+
+def test_config_prompt_override_reaches_llm_request(monkeypatch, tmp_path):
+    config = {
+        "enabled": True, "mode": "ocr", "provider": "ollama", "api_key": "",
+        "llm_prompt": "Only list the hyperlinks in this image.",
+    }
+    status, create_calls = _convert_png_through_engine(monkeypatch, tmp_path, config)
+
+    assert status == "converted"
+    messages_repr = str(create_calls[0]["messages"])
+    assert "Only list the hyperlinks in this image." in messages_repr
+    assert DEFAULT_LLM_PROMPT not in messages_repr

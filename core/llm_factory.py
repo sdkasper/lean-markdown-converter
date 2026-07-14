@@ -45,6 +45,35 @@ PROVIDER_PRESETS = {
 OCR_MAX_TOKENS = 4096
 OCR_FREQUENCY_PENALTY = 0.4
 
+# Default prompt sent with every OCR image request. MarkItDown's built-in
+# ImageConverter prompt is "Write a detailed caption for this image.", which
+# makes vision models (qwen3.5:9b especially) paraphrase or summarize instead
+# of transcribing. This override keeps the intent verbatim-transcription.
+# Users can replace it via the optional image_conversion.llm_prompt config key.
+DEFAULT_LLM_PROMPT = (
+    "Transcribe all text in this image exactly as written, formatted as "
+    "Markdown. Preserve the original wording verbatim - do not summarize, "
+    "paraphrase, or translate. Preserve structure such as headings, lists, "
+    "and tables. If the image contains no text, write a concise description "
+    "of it instead."
+)
+
+
+def resolve_llm_prompt(image_conversion: Optional[dict]) -> Optional[str]:
+    """Return the effective OCR prompt for image files, or None.
+
+    None means "OCR mode is not active - do not pass an llm_prompt kwarg",
+    which keeps MarkItDown's default behavior for EXIF mode and for embedded
+    images in non-image documents. When OCR is active, a non-empty
+    image_conversion["llm_prompt"] wins; otherwise DEFAULT_LLM_PROMPT.
+    """
+    config = image_conversion or {}
+    if not config.get("enabled", False) or config.get("mode", "exif") != "ocr":
+        return None
+
+    custom = str(config.get("llm_prompt") or "").strip()
+    return custom or DEFAULT_LLM_PROMPT
+
 
 def _apply_generation_caps(client) -> None:
     """Wrap client.chat.completions.create so OCR calls get default caps.

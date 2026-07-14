@@ -171,6 +171,69 @@ class TestRunConversion:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# llm_prompt forwarding - image files only (verbatim OCR transcription prompt)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestLlmPromptForwarding:
+    """The effective OCR prompt must reach md.convert() ONLY for image files
+    and only when a prompt is provided (OCR mode active). Non-image files -
+    including documents with embedded images - keep MarkItDown's default
+    captioning behavior by never receiving the kwarg.
+    """
+
+    def test_image_file_receives_llm_prompt(self, make_task, fake_md, tmp_path):
+        task = make_task(name="pic.png", content="x")
+        md = fake_md(default_text="transcribed")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        status = convert_one(task, md, logger, llm_prompt="TRANSCRIBE-PROMPT")
+
+        assert status == "converted"
+        assert md.kwargs_calls == [(str(task.src), {"llm_prompt": "TRANSCRIBE-PROMPT"})]
+
+    def test_uppercase_image_extension_receives_llm_prompt(self, make_task, fake_md, tmp_path):
+        task = make_task(name="PIC.JPG", content="x")
+        md = fake_md(default_text="transcribed")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        convert_one(task, md, logger, llm_prompt="TRANSCRIBE-PROMPT")
+
+        assert md.kwargs_calls == [(str(task.src), {"llm_prompt": "TRANSCRIBE-PROMPT"})]
+
+    def test_non_image_file_does_not_receive_llm_prompt(self, make_task, fake_md, tmp_path):
+        """A .pptx (may contain embedded images) must NOT get the kwarg."""
+        task = make_task(name="deck.pptx", content="x")
+        md = fake_md(default_text="slides")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        convert_one(task, md, logger, llm_prompt="TRANSCRIBE-PROMPT")
+
+        assert md.kwargs_calls == [(str(task.src), {})]
+
+    def test_no_prompt_means_no_kwarg_even_for_images(self, make_task, fake_md, tmp_path):
+        """llm_prompt=None (EXIF mode / OCR off) -> plain convert() call."""
+        task = make_task(name="pic.jpeg", content="x")
+        md = fake_md(default_text="exif output")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        convert_one(task, md, logger, llm_prompt=None)
+
+        assert md.kwargs_calls == [(str(task.src), {})]
+
+    def test_run_conversion_forwards_prompt_only_to_images(self, make_task, fake_md, tmp_path):
+        img_task = make_task(name="scan.png", content="x")
+        doc_task = make_task(name="table.csv", content="y")
+        md = fake_md(default_text="ok")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        counts = run_conversion([img_task, doc_task], md, run_logger=logger, llm_prompt="P")
+
+        assert counts.converted == 2
+        assert dict(md.kwargs_calls)[str(img_task.src)] == {"llm_prompt": "P"}
+        assert dict(md.kwargs_calls)[str(doc_task.src)] == {}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # RunLogger
 # ═══════════════════════════════════════════════════════════════════════════════
 

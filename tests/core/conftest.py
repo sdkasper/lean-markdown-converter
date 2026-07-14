@@ -26,6 +26,9 @@ class _FakeMarkItDown:
     Configure via ``responses`` (dict of str(src) -> text_content) and/or
     ``raises`` (dict of str(src) -> exception instance/class). Any source
     not found in either mapping falls back to ``default_text``.
+
+    ``calls`` records the paths (legacy assertions); ``kwargs_calls`` records
+    (path, kwargs) tuples so tests can assert on llm_prompt forwarding.
     """
 
     def __init__(self, responses=None, raises=None, default_text="converted content"):
@@ -33,9 +36,11 @@ class _FakeMarkItDown:
         self.raises = raises or {}
         self.default_text = default_text
         self.calls = []
+        self.kwargs_calls = []
 
-    def convert(self, path):
+    def convert(self, path, **kwargs):
         self.calls.append(path)
+        self.kwargs_calls.append((path, kwargs))
         if path in self.raises:
             exc = self.raises[path]
             raise exc if isinstance(exc, BaseException) else exc()

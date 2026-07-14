@@ -28,7 +28,7 @@ from core.constants import (
     VERSION,
 )
 from core.engine import ConversionCounts, run_conversion
-from core.llm_factory import PROVIDER_PRESETS, LLMConfigError, build_markitdown
+from core.llm_factory import PROVIDER_PRESETS, LLMConfigError, build_markitdown, resolve_llm_prompt
 from core.logging_util import RunLogger, format_summary
 from core.paths import logs_dir
 from core.scanner import collect_files
@@ -258,7 +258,8 @@ def main() -> None:
 
     try:
         counts = run_conversion(
-            scan.tasks, md, on_progress=on_progress, should_cancel=None, run_logger=run_logger
+            scan.tasks, md, on_progress=on_progress, should_cancel=None,
+            run_logger=run_logger, llm_prompt=resolve_llm_prompt(image_conversion),
         )
     except KeyboardInterrupt:
         counts = ConversionCounts(cancelled=True)

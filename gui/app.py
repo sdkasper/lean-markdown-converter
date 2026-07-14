@@ -28,7 +28,7 @@ from core.binaries import (
 from core.config import ConverterConfig, load_config, save_config
 from core.constants import APP_NAME, AUDIO_EXTENSIONS, EXT_GROUPS, VERSION
 from core.engine import run_conversion
-from core.llm_factory import LLMConfigError, PROVIDER_PRESETS, build_markitdown
+from core.llm_factory import LLMConfigError, PROVIDER_PRESETS, build_markitdown, resolve_llm_prompt
 from core.logging_util import RunLogger, format_summary
 from core.paths import logs_dir, resource_path
 from core.scanner import collect_files, count_files
@@ -372,6 +372,9 @@ class FileConverterApp:
             "api_key": self.image_api_key.get(),
             "model": self.image_model.get(),
             "base_url": self.image_base_url.get(),
+            # Config-file-only override (no widget): carry the loaded value
+            # through so a GUI save never drops a hand-edited llm_prompt.
+            "llm_prompt": self.config.image_conversion.get("llm_prompt", ""),
         }
 
     # ── Config persistence ───────────────────────────────────────────────────
@@ -449,8 +452,9 @@ class FileConverterApp:
             messagebox.showinfo("Dry Run", msg)
             return
 
+        image_conversion = self._current_image_conversion_dict()
         try:
-            md = build_markitdown(self._current_image_conversion_dict())
+            md = build_markitdown(image_conversion)
         except LLMConfigError as e:
             messagebox.showerror("Image Conversion Error", str(e))
             return
@@ -464,14 +468,19 @@ class FileConverterApp:
 
         self._run_logger = RunLogger(logs_dir(), VERSION, self.enable_logging.get())
 
-        threading.Thread(target=self._worker_thread, args=(tasks, md), daemon=True).start()
+        threading.Thread(
+            target=self._worker_thread,
+            args=(tasks, md, resolve_llm_prompt(image_conversion)),
+            daemon=True,
+        ).start()
 
-    def _worker_thread(self, tasks, md):
+    def _worker_thread(self, tasks, md, llm_prompt=None):
         counts = run_conversion(
             tasks, md,
             on_progress=lambda i, total, name: self.root.after(0, self._update_progress, i, total, name),
             should_cancel=lambda: self._cancelled,
             run_logger=self._run_logger,
+            llm_prompt=llm_prompt,
         )
         log_path = self._run_logger.finalize(format_summary(counts))
         self.root.after(0, self._on_conversion_done, counts, log_path)

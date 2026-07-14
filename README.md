@@ -30,7 +30,9 @@ Two independent modes - choose privacy - first or speed.
 - **Gemini (online)**: Google's flash model. Requires API key. Privacy: images are sent to Google but deleted after processing.
 - **Custom endpoint**: OpenAI or OpenAI - compatible. You control which provider handles the images.
 
-Configure image conversion in the GUI settings or `conversion_config.json` (dev mode only; frozen app uses `%APPDATA%\LeanProductivity\config.json`).
+In OCR mode the app instructs the model to transcribe all text in the image verbatim as Markdown (headings, lists, and tables preserved) instead of writing a caption. To customize this, add an optional `llm_prompt` key to the `image_conversion` block in the config file; an empty or missing key uses the built - in transcription prompt.
+
+Configure image conversion in the GUI settings or `conversion_config.json` (dev mode only; frozen app uses `%APPDATA%\LeanProductivity\config.json`). The `llm_prompt` override is config - file - only (no GUI field).
 
 ## Audio Transcription
 

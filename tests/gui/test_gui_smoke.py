@@ -169,6 +169,22 @@ def test_config_round_trip(app, tmp_path):
     assert loaded.image_conversion["api_key"] == "secret-key"
 
 
+def test_gui_save_preserves_hand_edited_llm_prompt(tk_root, monkeypatch, tmp_path):
+    """llm_prompt is config-file-only (no widget) - a GUI save must carry the
+    loaded value through instead of dropping it."""
+    loaded_cfg = ConverterConfig.from_dict(
+        {"image_conversion": {"enabled": True, "mode": "ocr", "llm_prompt": "My custom prompt."}}
+    )
+    monkeypatch.setattr(gui_app_module, "load_config", lambda: loaded_cfg)
+    app = FileConverterApp(tk_root)
+
+    cfg_path = tmp_path / "prompt_config.json"
+    app._save_config(cfg_path)
+
+    reloaded = core_load_config(cfg_path)
+    assert reloaded.image_conversion["llm_prompt"] == "My custom prompt."
+
+
 def test_start_with_nonexistent_input_shows_error(app, tmp_path, monkeypatch):
     errors = []
     monkeypatch.setattr(messagebox, "showerror", lambda title, msg: errors.append((title, msg)))
