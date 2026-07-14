@@ -5,7 +5,7 @@ category groupings consumed by both the GUI and CLI layers.
 """
 
 APP_NAME = "Lean Markdown Converter"
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 AUTHOR_NAME = "Sascha D. Kasper - LeanProductivity"
 HELP_URL = "https://github.com/microsoft/markitdown"
 APPDATA_VENDOR_DIR = "LeanProductivity"

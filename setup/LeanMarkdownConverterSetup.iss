@@ -10,7 +10,7 @@
 ; (the [Files] exiftool source below). Paths are relative to this .iss file.
 
 #define MyAppName "Lean Markdown Converter"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.0.1"
 #define MyAppPublisher "LeanProductivity"
 #define MyAppURL "https://sascha-kasper.com"
 #define MyAppExeName "LPMarkdownConverter.exe"
