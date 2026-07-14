@@ -183,7 +183,7 @@ class TestLlmPromptForwarding:
 
     def test_image_file_receives_llm_prompt(self, make_task, fake_md, tmp_path):
         task = make_task(name="pic.png", content="x")
-        md = fake_md(default_text="transcribed")
+        md = fake_md(default_text="# Description:\ntranscribed")
         logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
 
         status = convert_one(task, md, logger, llm_prompt="TRANSCRIBE-PROMPT")
@@ -193,7 +193,7 @@ class TestLlmPromptForwarding:
 
     def test_uppercase_image_extension_receives_llm_prompt(self, make_task, fake_md, tmp_path):
         task = make_task(name="PIC.JPG", content="x")
-        md = fake_md(default_text="transcribed")
+        md = fake_md(default_text="# Description:\ntranscribed")
         logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
 
         convert_one(task, md, logger, llm_prompt="TRANSCRIBE-PROMPT")
@@ -223,7 +223,10 @@ class TestLlmPromptForwarding:
     def test_run_conversion_forwards_prompt_only_to_images(self, make_task, fake_md, tmp_path):
         img_task = make_task(name="scan.png", content="x")
         doc_task = make_task(name="table.csv", content="y")
-        md = fake_md(default_text="ok")
+        md = fake_md(
+            default_text="ok",
+            responses={str(img_task.src): "# Description:\nok"},
+        )
         logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
 
         counts = run_conversion([img_task, doc_task], md, run_logger=logger, llm_prompt="P")
@@ -231,6 +234,97 @@ class TestLlmPromptForwarding:
         assert counts.converted == 2
         assert dict(md.kwargs_calls)[str(img_task.src)] == {"llm_prompt": "P"}
         assert dict(md.kwargs_calls)[str(doc_task.src)] == {}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Empty-description guard - OCR mode must not silently write empty results
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestEmptyDescriptionGuard:
+    """When OCR mode is active for an image, EXIF metadata alone can make the
+    output non-empty while the LLM returned no visible text (thinking models
+    like qwen3.5 can exhaust the whole token budget in their hidden reasoning
+    channel - observed live 2026-07-14: '# Description:' with an empty body,
+    logged as Converted). Such files must be reported as errors, not written.
+    """
+
+    EXIF_ONLY = "ImageSize: 1615x1967\nTitle: Some Paper\n\n# Description:\n"
+
+    def test_empty_description_is_error_and_not_written(self, make_task, fake_md, tmp_path):
+        task = make_task(name="dense.png", content="x")
+        md = fake_md(default_text=self.EXIF_ONLY)
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        status = convert_one(task, md, logger, llm_prompt="P")
+
+        assert status == "error"
+        assert not task.dst.exists()
+
+    def test_missing_description_section_is_error(self, make_task, fake_md, tmp_path):
+        """LLM description of None (e.g. upstream read failure) -> metadata
+        only, no '# Description:' section at all - still an OCR failure."""
+        task = make_task(name="dense.jpg", content="x")
+        md = fake_md(default_text="ImageSize: 100x100\n")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        status = convert_one(task, md, logger, llm_prompt="P")
+
+        assert status == "error"
+        assert not task.dst.exists()
+
+    def test_error_is_logged_with_guidance(self, make_task, fake_md, tmp_path):
+        task = make_task(name="dense.png", content="x")
+        md = fake_md(default_text=self.EXIF_ONLY)
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=True)
+
+        convert_one(task, md, logger, llm_prompt="P")
+
+        log_text = "".join(
+            p.read_text(encoding="utf-8") for p in (tmp_path / "logs").glob("*.log")
+        )
+        assert "OCR returned no text" in log_text
+
+    def test_nonempty_description_converts(self, make_task, fake_md, tmp_path):
+        task = make_task(name="scan.png", content="x")
+        md = fake_md(default_text="ImageSize: 1x1\n\n# Description:\nActual text.")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        status = convert_one(task, md, logger, llm_prompt="P")
+
+        assert status == "converted"
+        assert "Actual text." in task.dst.read_text(encoding="utf-8")
+
+    def test_exif_mode_metadata_only_is_not_flagged(self, make_task, fake_md, tmp_path):
+        """llm_prompt=None (EXIF mode) -> metadata-only output is the
+        expected result and must still convert."""
+        task = make_task(name="photo.jpg", content="x")
+        md = fake_md(default_text="ImageSize: 4032x3024\nDateTimeOriginal: 2026:01:01\n")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        status = convert_one(task, md, logger, llm_prompt=None)
+
+        assert status == "converted"
+
+    def test_non_image_without_description_is_not_flagged(self, make_task, fake_md, tmp_path):
+        """Non-image files never receive the prompt, so the guard must not
+        apply to them even when a prompt is configured for the run."""
+        task = make_task(name="table.csv", content="a,b")
+        md = fake_md(default_text="| a | b |")
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        status = convert_one(task, md, logger, llm_prompt="P")
+
+        assert status == "converted"
+
+    def test_run_conversion_counts_empty_description_as_failed(self, make_task, fake_md, tmp_path):
+        task = make_task(name="dense.png", content="x")
+        md = fake_md(default_text=self.EXIF_ONLY)
+        logger = RunLogger(tmp_path / "logs", "2.0.1", enabled=False)
+
+        counts = run_conversion([task], md, run_logger=logger, llm_prompt="P")
+
+        assert counts.failed == 1
+        assert counts.converted == 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

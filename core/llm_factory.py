@@ -39,11 +39,22 @@ PROVIDER_PRESETS = {
 # thousands of lines of garbage (observed live 2026-07-14 on an academic
 # paper page). The caps also bound worst-case cost on paid cloud providers.
 # - max_tokens: a clean dense-page extraction measures ~1,300 tokens; 4096
-#   leaves generous headroom while cutting runaway loops.
+#   leaves generous headroom while cutting runaway loops. Sent to every
+#   provider.
 # - frequency_penalty: 0.4 is mild enough not to corrupt legitimately
 #   repetitive document text (tables), strong enough to break loop attractors.
+#   NOT sent to gemini - its OpenAI-compatible endpoint rejects the field
+#   with 400 INVALID_ARGUMENT 'Unknown name "frequency_penalty"' (observed
+#   live 2026-07-14), which failed every OCR image on that provider.
+# - reasoning_effort "none": ollama only. Thinking models (e.g. qwen3.5)
+#   route output to a hidden reasoning channel that counts against
+#   max_tokens; on dense pages they exhaust the whole budget thinking and
+#   return EMPTY visible content (observed live 2026-07-14: finish_reason
+#   "length", 4096 completion tokens, 19k chars of reasoning, content "").
+#   "none" disables thinking; non-thinking models (glm-ocr) ignore it.
 OCR_MAX_TOKENS = 4096
 OCR_FREQUENCY_PENALTY = 0.4
+OCR_REASONING_EFFORT = "none"
 
 # Default prompt sent with every OCR image request. MarkItDown's built-in
 # ImageConverter prompt is "Write a detailed caption for this image.", which
@@ -75,8 +86,12 @@ def resolve_llm_prompt(image_conversion: Optional[dict]) -> Optional[str]:
     return custom or DEFAULT_LLM_PROMPT
 
 
-def _apply_generation_caps(client) -> None:
+def _apply_generation_caps(client, provider: str) -> None:
     """Wrap client.chat.completions.create so OCR calls get default caps.
+
+    Caps are provider-aware (see the OCR_* constant comments above): gemini
+    must not receive frequency_penalty, and only ollama gets the
+    reasoning_effort "none" kill-switch for thinking models.
 
     This shadows the bound method with a plain function attribute - callers
     (MarkItDown) simply invoke it, nothing subclasses it, so this is safe
@@ -88,7 +103,10 @@ def _apply_generation_caps(client) -> None:
 
     def create_with_caps(*args, **kwargs):
         kwargs.setdefault("max_tokens", OCR_MAX_TOKENS)
-        kwargs.setdefault("frequency_penalty", OCR_FREQUENCY_PENALTY)
+        if provider != "gemini":
+            kwargs.setdefault("frequency_penalty", OCR_FREQUENCY_PENALTY)
+        if provider == "ollama":
+            kwargs.setdefault("extra_body", {"reasoning_effort": OCR_REASONING_EFFORT})
         return original_create(*args, **kwargs)
 
     client.chat.completions.create = create_with_caps
@@ -143,7 +161,7 @@ def build_markitdown(image_conversion: Optional[dict]) -> "MarkItDown":
         if base_url:
             client_kwargs["base_url"] = base_url
         client = openai.OpenAI(**client_kwargs)
-        _apply_generation_caps(client)
+        _apply_generation_caps(client, provider)
 
         return MarkItDown(llm_client=client, llm_model=model)
     except LLMConfigError:

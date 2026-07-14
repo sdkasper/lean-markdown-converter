@@ -224,11 +224,17 @@ def test_openai_construction_failure_leaves_no_partial_state(monkeypatch):
 
 # ─── generation caps (anti repetition-loop / runaway-cost guard) ────────────
 
-def test_ocr_requests_get_default_generation_caps(monkeypatch):
+def test_ollama_requests_get_full_generation_caps(monkeypatch):
     """Small local models can degenerate into repetition loops on dense
-    pages; every OCR create() call must carry max_tokens and
-    frequency_penalty defaults."""
-    from core.llm_factory import OCR_FREQUENCY_PENALTY, OCR_MAX_TOKENS
+    pages; ollama OCR create() calls must carry max_tokens,
+    frequency_penalty AND the reasoning kill-switch (thinking models like
+    qwen3.5 otherwise burn the whole token budget in their hidden reasoning
+    channel and return empty content - observed live 2026-07-14)."""
+    from core.llm_factory import (
+        OCR_FREQUENCY_PENALTY,
+        OCR_MAX_TOKENS,
+        OCR_REASONING_EFFORT,
+    )
 
     _install_fake_openai(monkeypatch)
     md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "ollama", "api_key": ""})
@@ -239,17 +245,58 @@ def test_ocr_requests_get_default_generation_caps(monkeypatch):
     assert len(client.create_calls) == 1
     assert client.create_calls[0]["max_tokens"] == OCR_MAX_TOKENS
     assert client.create_calls[0]["frequency_penalty"] == OCR_FREQUENCY_PENALTY
+    assert client.create_calls[0]["extra_body"] == {"reasoning_effort": OCR_REASONING_EFFORT}
 
 
-def test_explicit_caller_values_override_caps(monkeypatch):
+def test_gemini_never_gets_frequency_penalty(monkeypatch):
+    """Gemini's OpenAI-compatible endpoint rejects frequency_penalty with
+    400 INVALID_ARGUMENT (observed live 2026-07-14, failed every image);
+    it must receive max_tokens only."""
+    from core.llm_factory import OCR_MAX_TOKENS
+
     _install_fake_openai(monkeypatch)
     md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "gemini", "api_key": "k"})
     client = md._llm_client
 
-    client.chat.completions.create(model="m", messages=[], max_tokens=99, frequency_penalty=0.0)
+    client.chat.completions.create(model="gemini-flash-latest", messages=[])
+
+    assert client.create_calls[0]["max_tokens"] == OCR_MAX_TOKENS
+    assert "frequency_penalty" not in client.create_calls[0]
+    assert "extra_body" not in client.create_calls[0]
+
+
+def test_custom_gets_openai_standard_caps_only(monkeypatch):
+    """Custom endpoints get the OpenAI-standard caps but not the
+    ollama-specific reasoning kill-switch (unknown endpoint tolerance)."""
+    from core.llm_factory import OCR_FREQUENCY_PENALTY, OCR_MAX_TOKENS
+
+    _install_fake_openai(monkeypatch)
+    md = build_markitdown({
+        "enabled": True, "mode": "ocr", "provider": "custom",
+        "base_url": "https://example.invalid/v1", "model": "m", "api_key": "k",
+    })
+    client = md._llm_client
+
+    client.chat.completions.create(model="m", messages=[])
+
+    assert client.create_calls[0]["max_tokens"] == OCR_MAX_TOKENS
+    assert client.create_calls[0]["frequency_penalty"] == OCR_FREQUENCY_PENALTY
+    assert "extra_body" not in client.create_calls[0]
+
+
+def test_explicit_caller_values_override_caps(monkeypatch):
+    _install_fake_openai(monkeypatch)
+    md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "ollama", "api_key": ""})
+    client = md._llm_client
+
+    client.chat.completions.create(
+        model="m", messages=[], max_tokens=99, frequency_penalty=0.0,
+        extra_body={"reasoning_effort": "high"},
+    )
 
     assert client.create_calls[0]["max_tokens"] == 99
     assert client.create_calls[0]["frequency_penalty"] == 0.0
+    assert client.create_calls[0]["extra_body"] == {"reasoning_effort": "high"}
 
 
 def test_capped_create_still_returns_response(monkeypatch):

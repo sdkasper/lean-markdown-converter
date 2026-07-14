@@ -46,6 +46,20 @@ def _m4a_to_temp_wav(src) -> "Path | None":
     return Path(tmp_name)
 
 
+def _ocr_description_body(content: str) -> str:
+    """Return the text after MarkItDown's '# Description:' heading, stripped.
+
+    Empty string means the LLM produced no visible description (or the
+    section is missing entirely). Only meaningful for OCR-mode image output;
+    EXIF-mode output legitimately has no Description section.
+    """
+    marker = "# Description:"
+    idx = content.find(marker)
+    if idx == -1:
+        return ""
+    return content[idx + len(marker):].strip()
+
+
 @dataclass
 class ConversionCounts:
     """Running tally for a single conversion run."""
@@ -98,6 +112,20 @@ def convert_one(task, md, run_logger: RunLogger, llm_prompt=None) -> str:
         if not content.strip():
             run_logger.log(f"Skipped (empty output): {src}")
             return "empty"
+
+        if "llm_prompt" in convert_kwargs and not _ocr_description_body(content):
+            # OCR mode promised text extraction but the model returned an
+            # empty description - EXIF metadata alone would make the output
+            # look like a success while silently containing no OCR result.
+            # Known trigger: thinking models (qwen3.5) exhaust the token
+            # budget in their hidden reasoning channel before emitting any
+            # visible content.
+            run_logger.log(
+                f"Error: {src} -> OCR returned no text (the model produced an "
+                f"empty description). Try a non-thinking vision model such as "
+                f"glm-ocr, or the gemini provider."
+            )
+            return "error"
 
         dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(content, encoding="utf-8")
