@@ -50,7 +50,7 @@ class TestImageConversionPartial:
         assert cfg.image_conversion["enabled"] is True
         assert cfg.image_conversion["mode"] == "exif"
         assert cfg.image_conversion["provider"] == "gemini"
-        assert cfg.image_conversion["model"] == "gemini-2.0-flash"
+        assert cfg.image_conversion["model"] == "gemini-2.5-flash"
         assert cfg.image_conversion["base_url"] == DEFAULT_IMAGE_CONVERSION["base_url"]
 
     def test_only_mode_present(self):

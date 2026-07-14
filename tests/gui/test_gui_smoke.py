@@ -150,7 +150,7 @@ def test_config_round_trip(app, tmp_path):
     app.image_mode.set("ocr")
     app.image_provider.set("gemini")
     app.image_api_key.set("secret-key")
-    app.image_model.set("gemini-2.0-flash")
+    app.image_model.set("gemini-2.5-flash")
     app.image_base_url.set("https://example.invalid/")
 
     cfg_path = tmp_path / "roundtrip_config.json"

@@ -69,7 +69,7 @@ Two independent layers selected via the `image_conversion` config block:
 
 | provider | base_url | default model | API key |
 |---|---|---|---|
-| gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.0-flash` | required |
+| gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-flash` | required |
 | ollama | `http://localhost:11434/v1` | `llava` | no (placeholder "ollama" sent) |
 | custom | blank (user-supplied) | blank (user-supplied) | usually |
 
