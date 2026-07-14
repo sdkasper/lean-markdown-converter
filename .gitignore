@@ -203,3 +203,5 @@ cython_debug/
 
 # Git worktrees
 .worktrees/
+# Installer build staging (extracted exiftool zip)
+setup/staging/
