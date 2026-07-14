@@ -33,6 +33,37 @@ PROVIDER_PRESETS = {
     },
 }
 
+# Generation caps injected into every OCR request (MarkItDown itself passes
+# neither). Small local models (e.g. glm-ocr) can fall into repetition loops
+# on dense document pages; without a token cap one image can degenerate into
+# thousands of lines of garbage (observed live 2026-07-14 on an academic
+# paper page). The caps also bound worst-case cost on paid cloud providers.
+# - max_tokens: a clean dense-page extraction measures ~1,300 tokens; 4096
+#   leaves generous headroom while cutting runaway loops.
+# - frequency_penalty: 0.4 is mild enough not to corrupt legitimately
+#   repetitive document text (tables), strong enough to break loop attractors.
+OCR_MAX_TOKENS = 4096
+OCR_FREQUENCY_PENALTY = 0.4
+
+
+def _apply_generation_caps(client) -> None:
+    """Wrap client.chat.completions.create so OCR calls get default caps.
+
+    This shadows the bound method with a plain function attribute - callers
+    (MarkItDown) simply invoke it, nothing subclasses it, so this is safe
+    (unlike the v1.1.0 hide_console.py Popen-as-function bug, which broke
+    because asyncio SUBCLASSES what it patched). Explicitly passed values
+    always win via setdefault.
+    """
+    original_create = client.chat.completions.create
+
+    def create_with_caps(*args, **kwargs):
+        kwargs.setdefault("max_tokens", OCR_MAX_TOKENS)
+        kwargs.setdefault("frequency_penalty", OCR_FREQUENCY_PENALTY)
+        return original_create(*args, **kwargs)
+
+    client.chat.completions.create = create_with_caps
+
 
 class LLMConfigError(Exception):
     """Raised when image_conversion config can't be turned into a working
@@ -83,6 +114,7 @@ def build_markitdown(image_conversion: Optional[dict]) -> "MarkItDown":
         if base_url:
             client_kwargs["base_url"] = base_url
         client = openai.OpenAI(**client_kwargs)
+        _apply_generation_caps(client)
 
         return MarkItDown(llm_client=client, llm_model=model)
     except LLMConfigError:

@@ -23,6 +23,10 @@ class _FakeOpenAIClient:
 def _install_fake_openai(monkeypatch, raise_on_construct=None):
     """Inject a fake openai module. Returns the list that captures each
     OpenAI(...) call's kwargs, in construction order.
+
+    The fake client exposes the real SDK's chat.completions.create attribute
+    chain (which MarkItDown calls and _apply_generation_caps wraps); each
+    create() call's kwargs are recorded on client.create_calls.
     """
     calls = []
     fake_module = types.ModuleType("openai")
@@ -33,6 +37,20 @@ def _install_fake_openai(monkeypatch, raise_on_construct=None):
                 raise raise_on_construct
             calls.append(kwargs)
             self.kwargs = kwargs
+            self.create_calls = []
+
+            client = self
+
+            class _Completions:
+                @staticmethod
+                def create(*args, **create_kwargs):
+                    client.create_calls.append(create_kwargs)
+                    return types.SimpleNamespace(
+                        choices=[types.SimpleNamespace(
+                            message=types.SimpleNamespace(content="fake"))]
+                    )
+
+            self.chat = types.SimpleNamespace(completions=_Completions())
 
     fake_module.OpenAI = OpenAI
     monkeypatch.setitem(sys.modules, "openai", fake_module)
@@ -196,3 +214,42 @@ def test_openai_construction_failure_leaves_no_partial_state(monkeypatch):
     md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "gemini", "api_key": "key123"})
     assert md._llm_client is not None
     assert len(calls) == 1
+
+
+# ─── generation caps (anti repetition-loop / runaway-cost guard) ────────────
+
+def test_ocr_requests_get_default_generation_caps(monkeypatch):
+    """Small local models can degenerate into repetition loops on dense
+    pages; every OCR create() call must carry max_tokens and
+    frequency_penalty defaults."""
+    from core.llm_factory import OCR_FREQUENCY_PENALTY, OCR_MAX_TOKENS
+
+    _install_fake_openai(monkeypatch)
+    md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "ollama", "api_key": ""})
+    client = md._llm_client
+
+    client.chat.completions.create(model="glm-ocr", messages=[])
+
+    assert len(client.create_calls) == 1
+    assert client.create_calls[0]["max_tokens"] == OCR_MAX_TOKENS
+    assert client.create_calls[0]["frequency_penalty"] == OCR_FREQUENCY_PENALTY
+
+
+def test_explicit_caller_values_override_caps(monkeypatch):
+    _install_fake_openai(monkeypatch)
+    md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "gemini", "api_key": "k"})
+    client = md._llm_client
+
+    client.chat.completions.create(model="m", messages=[], max_tokens=99, frequency_penalty=0.0)
+
+    assert client.create_calls[0]["max_tokens"] == 99
+    assert client.create_calls[0]["frequency_penalty"] == 0.0
+
+
+def test_capped_create_still_returns_response(monkeypatch):
+    _install_fake_openai(monkeypatch)
+    md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "ollama", "api_key": ""})
+
+    response = md._llm_client.chat.completions.create(model="glm-ocr", messages=[])
+
+    assert response.choices[0].message.content == "fake"

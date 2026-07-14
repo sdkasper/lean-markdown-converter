@@ -73,6 +73,10 @@ Two independent layers selected via the `image_conversion` config block:
 | ollama | `http://localhost:11434/v1` | `glm-ocr` | no (placeholder "ollama" sent) |
 | custom | blank (user-supplied) | blank (user-supplied) | usually |
 
+**Generation caps (do not remove):** `_apply_generation_caps` in `core/llm_factory.py` injects `max_tokens=4096` and `frequency_penalty=0.4` into every OCR request (MarkItDown passes neither). Without them, small local models fall into repetition loops on dense document pages - observed live with glm-ocr: ~1,500 lines of progressively corrupted garbage from one academic paper page. With caps the same page yields complete, coherent text (some benign repetition until the cap). Also bounds worst-case cloud token costs.
+
+**Local model guidance:** `glm-ocr` (default, ~2 GB) is excellent for screenshots, slides, and simple documents. Dense multi-column pages can still trigger benign repetition - users with capable hardware should switch the model field to `qwen3.5:9b` or `gemma4:12b`, or use the Gemini provider for such content.
+
 `image_conversion.api_key` is stored in plaintext in the config (accepted risk, single-user desktop tool) - never commit a populated config, never log the key.
 
 ### Audio Support
