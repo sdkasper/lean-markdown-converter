@@ -41,20 +41,24 @@ jobs:
         run: pip install pytest pytest-cov
 
       - name: Run test suite with coverage
-        # Coverage threshold is set conservatively because gui_converter.py
-        # contains substantial tkinter UI code that cannot be tested headlessly,
-        # and cli_converter.py logic lives inside a __main__ guard.
-        # Testable code (is_safe_path, load_config, save_config, conversion logic,
-        # file collection, extension handling) is covered at ~90%+. The 23% total
-        # reflects structural limits of untestable UI/interactive code, not test quality.
-        # 128 tests verify all user-facing functionality comprehensively.
+        # -m "not slow" skips the audio integration test (real-speech M4A
+        # fixture): it needs real ffmpeg/ffprobe binaries (LFS objects,
+        # lfs: false above) and Google's Web Speech API over the network.
+        # It remains a local/pre-release check where those exist.
+        # Coverage measures the v2 layout (core/ + thin cli/ and gui/
+        # presentation layers). The fast suite measures 77% locally; the
+        # gate is set below that with headroom. gui/main.py (0%) is the
+        # frozen-only PyInstaller entry point + selftest, exercised by the
+        # mandatory post-build `--selftest` instead.
         run: >
           pytest tests/
+          -m "not slow"
+          --cov=core
+          --cov=cli
           --cov=gui
-          --cov=terminal
           --cov-report=xml
           --cov-report=term-missing
-          --cov-fail-under=23
+          --cov-fail-under=70
         env:
           # Prevent tkinter from trying to connect to a display in headless CI
           # (imports still work; we just avoid instantiating Tk windows)
