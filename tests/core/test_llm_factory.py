@@ -111,7 +111,7 @@ def test_ollama_no_key_injects_placeholder(monkeypatch):
     md = build_markitdown({"enabled": True, "mode": "ocr", "provider": "ollama", "api_key": ""})
     assert calls[0]["api_key"] == "ollama"
     assert calls[0]["base_url"] == PROVIDER_PRESETS["ollama"]["base_url"]
-    assert md._llm_model == "llava"
+    assert md._llm_model == "glm-ocr"
 
 
 def test_ollama_no_key_does_not_raise(monkeypatch):

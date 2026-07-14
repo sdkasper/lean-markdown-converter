@@ -66,9 +66,9 @@ if (-not $iscc) {
     $isccDefault = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
     if (Test-Path $isccDefault) { $iscc = $isccDefault } else { throw "iscc.exe not found (install Inno Setup 6 or add to PATH)" }
 }
-& $iscc "$root\setup\LPMarkdownConverterSetup.iss"
+& $iscc "$root\setup\LeanMarkdownConverterSetup.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup build failed" }
 
-$setupExe = "$root\setup\LPMarkdownConverterSetup.exe"
+$setupExe = "$root\setup\LeanMarkdownConverterSetup.exe"
 $setupMB = [math]::Round((Get-Item $setupExe).Length / 1MB, 1)
-Write-Host "==> setup\LPMarkdownConverterSetup.exe built ($setupMB MB)" -ForegroundColor Green
+Write-Host "==> setup\LeanMarkdownConverterSetup.exe built ($setupMB MB)" -ForegroundColor Green

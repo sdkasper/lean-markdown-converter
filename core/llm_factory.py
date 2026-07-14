@@ -23,7 +23,7 @@ PROVIDER_PRESETS = {
     },
     "ollama": {
         "base_url": "http://localhost:11434/v1",
-        "model": "llava",
+        "model": "glm-ocr",
         "needs_key": False,
     },
     "custom": {

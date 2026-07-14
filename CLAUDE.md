@@ -70,7 +70,7 @@ Two independent layers selected via the `image_conversion` config block:
 | provider | base_url | default model | API key |
 |---|---|---|---|
 | gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-flash-latest` | required |
-| ollama | `http://localhost:11434/v1` | `llava` | no (placeholder "ollama" sent) |
+| ollama | `http://localhost:11434/v1` | `glm-ocr` | no (placeholder "ollama" sent) |
 | custom | blank (user-supplied) | blank (user-supplied) | usually |
 
 `image_conversion.api_key` is stored in plaintext in the config (accepted risk, single-user desktop tool) - never commit a populated config, never log the key.
@@ -100,7 +100,7 @@ Dev: project root. Frozen: `%APPDATA%\LeanProductivity\config.json`. Extensions 
 | `LPMarkdownConverter.spec` | PyInstaller spec - entry `gui/main.py`, upx=False, no embedded binaries |
 | `hide_console.py` | Runtime hook - `_NoWindowPopen` subclass (see Packaging above) |
 | `build.ps1` | Build pipeline: exe, magika bundle check, `-Installer` stages exiftool zip + runs iscc |
-| `setup/LPMarkdownConverterSetup.iss` | Inno Setup - components: core (fixed) / audio / exiftool (default-checked) |
+| `setup/LeanMarkdownConverterSetup.iss` | Inno Setup - components: core (fixed) / audio / exiftool (default-checked) |
 | `resources/bin/ffmpeg.exe`, `ffprobe.exe` | Installer audio component sources (Git LFS) |
 | `resources/bin/exiftool-13.59.zip` | Installer exiftool component source, extracted by build.ps1 to `setup/staging/` (Git LFS) |
 | `resources/LeanProductivity.ico` | App icon (only resource embedded in the exe) |

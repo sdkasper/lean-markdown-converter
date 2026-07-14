@@ -135,7 +135,7 @@ def test_provider_switch_prefills_ollama(app):
     app._on_provider_change()
 
     assert app.image_base_url.get() == "http://localhost:11434/v1"
-    assert app.image_model.get() == "llava"
+    assert app.image_model.get() == "glm-ocr"
 
 
 def test_config_round_trip(app, tmp_path):

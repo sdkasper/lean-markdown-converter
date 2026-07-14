@@ -36,7 +36,7 @@ LicenseFile=LICENSE.txt
 
 ; Installer output settings
 OutputDir=.
-OutputBaseFilename=LPMarkdownConverterSetup
+OutputBaseFilename=LeanMarkdownConverterSetup
 SolidCompression=yes
 WizardStyle=modern
 
