@@ -6,110 +6,107 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A batch file-to-Markdown converter using [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Provides both a CLI (interactive terminal prompts) and a GUI (tkinter). Distributed as a Windows standalone `.exe` via PyInstaller + Inno Setup installer.
 
-Current version: **v1.1.0** (Lean Markdown Converter)
+Current version: **v2.0.0** (Lean Markdown Converter) - a from-scratch rebuild with a shared `core/` package replacing the previous duplicated CLI/GUI architecture. Spec artifacts (9 EPICs, 31 user stories, 8 test cases, 6 NFRs) live in the vault at `$VAULT_PATH\01 Projects\LP Products\Lean Markdown Converter`.
 
 ## Commands
 
 ```bash
 # Setup
-pip install -r requirements.txt          # 55 pinned deps including markitdown[all], magika, pydub
+pip install -r requirements.txt          # pinned deps incl. markitdown[all], magika, pydub, openai
 
-# Run
-python terminal/cli_converter.py         # CLI — interactive prompts for folders, extensions, options
-python gui/gui_converter.py              # GUI — tkinter interface
-
-# Build (PowerShell)
-powershell build.ps1                     # Runs: pyinstaller LPMarkdownConverter.spec
-                                         # Produces single-file .exe in dist/
+# Run (dev mode)
+python -m cli.main                       # CLI - interactive prompts for folders, extensions, options
+python -m gui.main                       # GUI - tkinter interface
+python -m gui.main --selftest            # frozen-bundle diagnostic (also works in dev); writes selftest_report.json
 
 # Test
-pytest tests/                            # Run all tests (comprehensive suite in tests/)
-pytest tests/test_conversion_flow.py     # Run specific test file
+pytest tests/                            # full suite
+pytest tests/core/                       # core logic only (fast)
+pytest -m "not slow"                     # skip audio-heavy tests
+
+# Build (PowerShell)
+powershell build.ps1                     # PyInstaller exe only -> dist/LPMarkdownConverter.exe
+powershell build.ps1 -Installer         # exe + staged exiftool + Inno Setup installer
+
+# ALWAYS after building:
+dist/LPMarkdownConverter.exe --selftest  # must exit 0; report at %APPDATA%\LeanProductivity\selftest_report.json
 ```
 
 Linter: None configured. Format with your preferred tool (black, ruff, etc.).
 
-## Architecture
+## Architecture (v2.0.0)
 
-Two independent entry points share the same conversion approach (MarkItDown → `.md`) but do **not** share code — each has its own file-walking, config I/O, and conversion loop:
+Shared-core design: ALL logic lives in `core/`; `gui/` and `cli/` are thin presentation layers. Never duplicate logic into a UI layer.
 
-- **`gui/gui_converter.py`** — `FileConverterApp` class, tkinter UI, threaded conversion via `worker_thread()`. This is the PyInstaller entry point.
-- **`terminal/cli_converter.py`** — Linear script with `input()` prompts, no classes.
+| Module | Responsibility |
+|--------|----------------|
+| `core/constants.py` | APP_NAME, VERSION, 21-extension allowlist (`SUPPORTED_EXTENSIONS`), `EXT_GROUPS`, audio/image subsets |
+| `core/paths.py` | frozen/dev path resolution (`config_file_path`, `logs_dir`, `exe_dir`), `is_safe_path` (NFR-001) |
+| `core/config.py` | `ConverterConfig` dataclass, never-raise `load_config`, legacy list + missing-key backward compat |
+| `core/binaries.py` | tool discovery (PATH > env var > `<exe_dir>\tools\` > dev `resources/bin/`), `configure_pydub` (both-or-neither), startup diagnostics |
+| `core/llm_factory.py` | `PROVIDER_PRESETS`, `build_markitdown(image_conversion)` - single openai-SDK path for all providers |
+| `core/scanner.py` | `collect_files` (walk, mirror, skip, safety), `count_files` (GUI live preview) |
+| `core/engine.py` | `run_conversion` - per-file error boundary, empty-output guard, cancel semantics, audio counters |
+| `core/logging_util.py` | `RunLogger` (timestamped logs), `format_summary`. API keys are NEVER logged |
+| `gui/app.py` | `FileConverterApp` - widgets, worker thread + `root.after` updates, debounced live count |
+| `gui/main.py` | PyInstaller entry point + `--selftest` diagnostic |
+| `cli/main.py` | interactive prompt flow, dry-run confirm gate, Ctrl+C -> exit 130 |
 
-Both read/write **`conversion_config.json`** (persisted user settings: folders, extension toggles, force/dry-run/logging flags). The GUI stores extensions as `{".pdf": true, ...}` dict; the CLI stores them as a list — the GUI handles both formats on load.
+Error contract: construction errors (`LLMConfigError`, bad folders) surface BEFORE any file is touched; per-file conversion errors are caught, counted, logged, and the run continues.
 
-### Supported Formats
+### Supported Formats (21)
 
 `.csv` `.doc` `.docx` `.epub` `.htm` `.html` `.ipynb` `.jpeg` `.jpg` `.json` `.m4a` `.mp3` `.msg` `.pdf` `.png` `.ppt` `.pptx` `.wav` `.xls` `.xlsx` `.xml`
 
-**Note:** `.bmp`, `.gif`, and `.tiff` are NOT supported. MarkItDown's `ImageConverter` only accepts `.jpg`/`.jpeg`/`.png` by extension (or `image/jpeg`/`image/png` by mimetype) — verified directly against the installed package for both markitdown 0.1.5 and the latest 0.1.6. Selecting a `.bmp`/`.gif`/`.tiff` file raises `UnsupportedFormatException` on every conversion attempt (a 100% failure rate, not a silent empty output), so they're deliberately excluded from `SUPPORTED_EXTENSIONS`. Re-adding them would require an upstream MarkItDown change.
+`.bmp`/`.gif`/`.tiff` are NOT supported - MarkItDown's `ImageConverter` only accepts jpg/jpeg/png; re-adding them requires an upstream MarkItDown change. Dangerous extensions (`.exe`, `.dll`, `.ps1`, `.bat`, `.zip`) must never enter the allowlist (NFR-002; enforced by `tests/core/test_extensions.py`).
 
 ### Image Support
 
-Re-enabled for `.jpg`/`.jpeg`/`.png` (previously removed entirely). MarkItDown's `ImageConverter` supports two independent layers — EXIF metadata (no LLM) and LLM-based OCR/description — selected per-run via the `image_conversion` config block (see "Config format" below) rather than always defaulting to the bare EXIF path.
+Two independent layers selected via the `image_conversion` config block:
 
-**Master toggle + mode choice.** `image_conversion.enabled` is the master switch; when off, `.jpg`/`.jpeg`/`.png` files still show as selectable extensions but conversion falls back to `MarkItDown()` with no LLM wiring (EXIF-only, same as pre-v1.1.0 behavior). When `enabled` is true, `image_conversion.mode` picks the layer: `"exif"` (default, no LLM) or `"ocr"` (LLM vision call via an OpenAI-compatible client). In the GUI, the master toggle greys out (but does not uncheck) the `.jpg`/`.jpeg`/`.png` extension checkboxes and the "Images" group-checkbox when off, so re-enabling restores the user's prior selection.
+- **EXIF mode** (default): `MarkItDown()` with no LLM; requires the exiftool binary (optional installer component -> `{app}\tools\exiftool\`; discovered via PATH > `EXIFTOOL_PATH` > install dir). Missing exiftool -> empty output -> file skipped by the empty-output guard, with a UI warning.
+- **OCR mode**: `MarkItDown(llm_client=openai.OpenAI(...), llm_model=...)`. All three providers (gemini/ollama/custom) use the plain openai SDK - Gemini via its OpenAI-compatible endpoint. `google-generativeai` was removed in v2.0.0; do not reintroduce it.
 
-- **EXIF mode — no LLM required, but needs the `exiftool` binary.** MarkItDown auto-detects `exiftool` via the `EXIFTOOL_PATH` env var or well-known system install locations at `MarkItDown()` construction time. If `exiftool` isn't found, image conversion still succeeds but returns empty text content — the existing "skip empty output" logic in both CLI and GUI treats the file as skipped rather than converted, and both surfaces show a warning when EXIF mode is selected and exiftool can't be located (checked via `shutil.which("exiftool")`, then a bundled-copy fallback).
-- **OCR mode — LLM vision call, provider-selectable.** `image_conversion.provider` picks one of three presets, each supplying a default `base_url`/`model` (user-editable) that get passed through an OpenAI-compatible client into `MarkItDown(llm_client=..., llm_model=...)`:
+| provider | base_url | default model | API key |
+|---|---|---|---|
+| gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.0-flash` | required |
+| ollama | `http://localhost:11434/v1` | `llava` | no (placeholder "ollama" sent) |
+| custom | blank (user-supplied) | blank (user-supplied) | usually |
 
-  | provider | base_url | default model | API key required |
-  |---|---|---|---|
-  | gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.0-flash` | yes |
-  | ollama | `http://localhost:11434/v1` | `llava` | no (local server; a placeholder string is sent since the OpenAI SDK requires a non-empty `api_key`) |
-  | custom | blank (falls through to official `api.openai.com` if left blank) | blank (user-supplied, e.g. `gpt-4o`) | yes, typically |
-
-- **exiftool packaging.** Unlike `ffmpeg` (bundled into the frozen exe for audio), `exiftool` is **not** embedded in the single-file PyInstaller build — it ships as an **optional Windows installer component** (Inno Setup task, checked by default) so users can decline it. The dev-script path (`python gui/gui_converter.py`) relies entirely on PATH/`EXIFTOOL_PATH` discovery with no bundled fallback.
-- **No new binary for OCR mode.** The `openai` package (added to `requirements.txt`) is pure-Python, so OCR mode requires no additional bundled binary — only the network-facing HTTP client.
-- **API key storage caveat.** `image_conversion.api_key` is stored **in plaintext** in `conversion_config.json` (masked in the GUI display field, but not encrypted at rest). This matches the app's existing security posture — there is no encryption anywhere in this codebase, and it's a single-user desktop tool — but it means the config file must never be committed or shared once populated with a real key (see `.gitignore` note below). Never log the API key value in any log line.
-
-### Key files
-
-| File | Purpose |
-|------|---------|
-| `LPMarkdownConverter.spec` | PyInstaller spec — bundles `gui_converter.py`, ffmpeg, magika models, icon |
-| `hide_console.py` | PyInstaller runtime hook — patches `subprocess.Popen` with `CREATE_NO_WINDOW` to suppress console flashes in windowed mode |
-| `build.ps1` | One-liner that invokes `pyinstaller LPMarkdownConverter.spec` |
-| `setup/LPMarkdownConverterSetup.iss` | Inno Setup script for Windows installer |
-| `resources/bin/ffmpeg.exe` | Bundled FFmpeg for audio conversion (mp3/m4a/wav via pydub) |
-| `resources/bin/exiftool.exe` | Optional Windows installer component, not embedded in the frozen single-file exe |
-| `resources/LeanProductivity.ico` | App icon |
-
-### Conversion flow
-
-1. Walk `input_folder` recursively, filter by selected extensions
-2. Mirror directory structure under `output_folder`, changing suffix to `.md`
-3. Skip files where output already exists and is newer (unless force mode)
-4. Call `MarkItDown().convert(src_path)` → write `result.text_content` to destination
-5. Log results to timestamped file in `logs/`
-
-### Config format (`conversion_config.json`)
-
-GUI writes extensions as `{".ext": bool}` dict. CLI writes as `[".ext", ...]` list. The GUI's `load_config()` handles both formats; keep this backward compatibility if modifying config handling.
-
-Since v1.1.0, both files also read/write a top-level `image_conversion` object:
-
-```json
-"image_conversion": {
-    "enabled": false,
-    "mode": "exif",
-    "provider": "gemini",
-    "api_key": "",
-    "model": "gemini-2.0-flash",
-    "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
-}
-```
-
-This key is **optional and defaults to disabled** — old `conversion_config.json` files written before v1.1.0 have no `image_conversion` key at all, and both `load_config()` functions treat its absence as "feature off, EXIF-only fallback" via chained `.get("image_conversion", {}).get(field, default)` lookups. No migration code is needed.
+`image_conversion.api_key` is stored in plaintext in the config (accepted risk, single-user desktop tool) - never commit a populated config, never log the key.
 
 ### Audio Support
 
-CLI and GUI both configure pydub's `AudioSegment.converter` and `AudioSegment.ffprobe` to point to the bundled FFmpeg (or system path in compiled .exe). M4A support requires both `converter` AND `ffprobe` to be set (ffprobe detects the container format).
+pydub needs BOTH `AudioSegment.converter` (ffmpeg) and `AudioSegment.ffprobe` (ffprobe) - M4A container detection requires ffprobe specifically. Binaries are NOT embedded in the exe (v2.0.0): they ship as the default-checked "audio" installer component -> `{app}\tools\`, with system PATH checked first and dev fallback `resources/bin/`. When unavailable, the GUI greys out the Audio group.
+
+### Config format (`conversion_config.json`)
+
+Dev: project root. Frozen: `%APPDATA%\LeanProductivity\config.json`. Extensions stored as `{".ext": bool}` dict; legacy `[".ext"]` list still loads. Missing `image_conversion` key = feature off (pre-v1.1.0 configs load unchanged). See `core/config.py` `DEFAULT_IMAGE_CONVERSION`.
+
+## Packaging (critical lessons)
+
+- **`hide_console.py` must install a `subprocess.Popen` SUBCLASS, not a wrapper function.** `asyncio.windows_utils` subclasses `subprocess.Popen` at import time; a function there raises `TypeError: function() argument 'code' must be code, not str`. This single line blocked five v1.1.0 builds (openai imports asyncio; runtime hooks only run frozen). Do not "simplify" it back.
+- **UPX stays off** in the spec until stability is re-proven with an explicit exclusion list.
+- The spec bundles NO external binaries and only the icon from `resources/` - bundling the whole `resources/` folder would drag 226 MB of ffmpeg back in.
+- `collect_submodules` for openai/httpx/pydantic/markitdown + certifi data are required for the frozen openai path.
+- After every build run `dist\LPMarkdownConverter.exe --selftest` (exit 0, 8/8 PASS) before any manual testing.
+
+## Key files
+
+| File | Purpose |
+|------|---------|
+| `LPMarkdownConverter.spec` | PyInstaller spec - entry `gui/main.py`, upx=False, no embedded binaries |
+| `hide_console.py` | Runtime hook - `_NoWindowPopen` subclass (see Packaging above) |
+| `build.ps1` | Build pipeline: exe, magika bundle check, `-Installer` stages exiftool zip + runs iscc |
+| `setup/LPMarkdownConverterSetup.iss` | Inno Setup - components: core (fixed) / audio / exiftool (default-checked) |
+| `resources/bin/ffmpeg.exe`, `ffprobe.exe` | Installer audio component sources (Git LFS) |
+| `resources/bin/exiftool-13.59.zip` | Installer exiftool component source, extracted by build.ps1 to `setup/staging/` (Git LFS) |
+| `resources/LeanProductivity.ico` | App icon (only resource embedded in the exe) |
 
 ## Git & Deployment
 
-- Git LFS tracks `*.exe` and `*.zip` (see `.gitattributes`)
-- Remote: `sdkasper/lean-markdown-converter`
-- Built artifacts live in `dist/` (exe) and `setup/` (installer), both tracked via LFS
-- `Input/` and `Output/` contain demo/test files (committed); `logs/` is gitignored
-- Releases published to GitHub with both standalone exe and installer
+- Git LFS tracks `*.exe` and `*.zip` (`.gitattributes`)
+- Remote: `sdkasper/lean-markdown-converter`; v2.0.0 rebuild lives on the `work` branch
+- Built artifacts: `dist/` (exe) and `setup/` (installer), both LFS
+- `Input/`/`Output/` contain demo files (committed); `logs/`, `setup/staging/`, `selftest_report.json` gitignored
+- Release: build both artifacts (`build.ps1 -Installer`), selftest, commit via LFS, tag, publish to GitHub Releases
