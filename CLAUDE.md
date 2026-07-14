@@ -79,6 +79,8 @@ Two independent layers selected via the `image_conversion` config block:
 
 pydub needs BOTH `AudioSegment.converter` (ffmpeg) and `AudioSegment.ffprobe` (ffprobe) - M4A container detection requires ffprobe specifically. Binaries are NOT embedded in the exe (v2.0.0): they ship as the default-checked "audio" installer component -> `{app}\tools\`, with system PATH checked first and dev fallback `resources/bin/`. When unavailable, the GUI greys out the Audio group.
 
+**M4A stdin-pipe workaround (do not remove):** MarkItDown feeds M4A streams to ffmpeg via a stdin pipe; MP4 containers keep their index (moov atom) at the file's end, which pipes cannot seek to, so ffmpeg silently yields 0.00s of audio and transcription fails with `UnknownValueError` on every non-faststart M4A (i.e., most of them, including iPhone voice memos). `core/engine.py::_m4a_to_temp_wav` pre-decodes .m4a by PATH into a temp WAV and hands that to MarkItDown. Trade-off: M4A metadata tags are not carried over (transcript-only output). Regression-guarded by `tests/core/test_engine.py::TestM4aPipeWorkaround` incl. a real speech fixture (`tests/fixtures/speech.m4a`).
+
 ### Config format (`conversion_config.json`)
 
 Dev: project root. Frozen: `%APPDATA%\LeanProductivity\config.json`. Extensions stored as `{".ext": bool}` dict; legacy `[".ext"]` list still loads. Missing `image_conversion` key = feature off (pre-v1.1.0 configs load unchanged). See `core/config.py` `DEFAULT_IMAGE_CONVERSION`.
