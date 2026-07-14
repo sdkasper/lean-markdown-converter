@@ -532,6 +532,19 @@ class FileConverterApp:
         self.cancelled = True
         self.root.destroy()
 
+    class _GeminiResponse:
+        """Minimal response wrapper to match OpenAI response format for MarkItDown."""
+        def __init__(self, text: str):
+            self.choices = [self._Choice(text)]
+
+        class _Choice:
+            def __init__(self, text: str):
+                self.message = self._Message(text)
+
+            class _Message:
+                def __init__(self, text: str):
+                    self.content = text
+
     def _build_markitdown(self):
         """Build MarkItDown instance with optional LLM support based on config.
 
@@ -550,15 +563,45 @@ class FileConverterApp:
             return MarkItDown()
 
         try:
-            import openai
-            client = openai.OpenAI(
-                api_key=api_key or "ollama",
-                base_url=base_url or None,
-            )
-            return MarkItDown(llm_client=client, llm_model=model)
+            if provider == "gemini":
+                # Use Google's native library for Gemini (more reliable than OpenAI compat endpoint)
+                import google.generativeai as genai
+                genai.configure(api_key=api_key)
+
+                # Create minimal OpenAI-compatible wrapper for MarkItDown
+                class GeminiOpenAIAdapter:
+                    def __init__(self, model_name: str):
+                        self.model_name = model_name
+
+                    def chat(self):
+                        # MarkItDown calls client.chat.completions.create()
+                        return self.ChatCompletions()
+
+                    class ChatCompletions:
+                        def create(self, model=None, messages=None, temperature=None, **kwargs):
+                            # Convert OpenAI format to Gemini format
+                            genai_model = genai.GenerativeModel(model or "gemini-2.0-flash")
+                            contents = [{"role": msg["role"], "parts": [msg["content"]]} for msg in messages]
+                            response = genai_model.generate_content(contents)
+                            # Return OpenAI-compatible response object
+                            return FileConverterApp._GeminiResponse(response.text)
+
+                client = GeminiOpenAIAdapter(model)
+                return MarkItDown(llm_client=client, llm_model=model)
+            else:
+                # Ollama and custom: use openai.OpenAI (native OpenAI-compat support)
+                import openai
+                api_key_str = str(api_key or "ollama").strip()
+                kwargs = {"api_key": api_key_str}
+                if base_url and str(base_url).strip():
+                    kwargs["base_url"] = str(base_url).strip()
+                client = openai.OpenAI(**kwargs)
+                return MarkItDown(llm_client=client, llm_model=model)
         except Exception as e:
-            # Construction-time error: fail fast with clear message
-            messagebox.showerror("Image Conversion Error", f"Failed to initialize LLM: {str(e)}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            full_msg = f"Failed to initialize LLM:\n\nType: {error_type}\nMessage: {error_msg}"
+            messagebox.showerror("Image Conversion Error", full_msg)
             raise
 
     @staticmethod

@@ -50,6 +50,36 @@ def _is_exiftool_available():
         return True
     return False
 
+# ─── GEMINI OPENAI-COMPATIBLE ADAPTER ──────────────────────────────────────
+class _GeminiOpenAIAdapter:
+    """Minimal wrapper to adapt Google Gemini API to OpenAI client interface."""
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+
+    def chat(self):
+        return self.ChatCompletions()
+
+    class ChatCompletions:
+        def create(self, model=None, messages=None, temperature=None, **kwargs):
+            import google.generativeai as genai
+            genai_model = genai.GenerativeModel(model or "gemini-2.0-flash")
+            contents = [{"role": msg["role"], "parts": [msg["content"]]} for msg in messages]
+            response = genai_model.generate_content(contents)
+            return _GeminiResponse(response.text)
+
+class _GeminiResponse:
+    """Response wrapper to match OpenAI format."""
+    def __init__(self, text: str):
+        self.choices = [self._Choice(text)]
+
+    class _Choice:
+        def __init__(self, text: str):
+            self.message = self._Message(text)
+
+        class _Message:
+            def __init__(self, text: str):
+                self.content = text
+
 # ─── MARKITDOWN FACTORY ────────────────────────────────────────────────────
 def build_markitdown(enabled, mode, provider, api_key, model, base_url):
     """Build a MarkItDown instance with optional LLM support based on config.
@@ -62,14 +92,22 @@ def build_markitdown(enabled, mode, provider, api_key, model, base_url):
         return MarkItDown()
 
     try:
-        import openai
-        client = openai.OpenAI(
-            api_key=api_key or "ollama",
-            base_url=base_url or None,
-        )
-        return MarkItDown(llm_client=client, llm_model=model)
+        if provider == "gemini":
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            client = _GeminiOpenAIAdapter(model)
+            return MarkItDown(llm_client=client, llm_model=model)
+        else:
+            import openai
+            api_key_str = str(api_key or "ollama").strip()
+            kwargs = {"api_key": api_key_str}
+            if base_url and str(base_url).strip():
+                kwargs["base_url"] = str(base_url).strip()
+            client = openai.OpenAI(**kwargs)
+            return MarkItDown(llm_client=client, llm_model=model)
     except Exception as e:
-        print(f"Error: Failed to initialize LLM: {str(e)}")
+        error_type = type(e).__name__
+        print(f"Error: Failed to initialize LLM ({error_type}): {str(e)}")
         raise
 
 # Optional: FFmpeg for audio support via pydub

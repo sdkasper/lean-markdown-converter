@@ -39,7 +39,7 @@ exe = EXE(
     a.binaries,
     a.zipfiles,
     a.datas,
-    name='LPMarkdownConverter',
+    name='LPMarkdownConverter-beta',
     debug=False,
     strip=False,
     upx=True,
